@@ -45,16 +45,10 @@ const Login = (req, res) => {
       { expiresIn: '7d' }
     );
 
-    const userProfile = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-    };
-
-    res.json({ msg: "Login muvaffaqiyatli", token, user: userProfile });
+    res.json({ msg: "Login muvaffaqiyatli", token });
   });
 };
+
 
 
 

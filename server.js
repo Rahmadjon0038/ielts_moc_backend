@@ -4,6 +4,7 @@ const app = express();
 app.use(cors())
 app.use(express.json())
 const authRouter = require('./routes/AuthRouter')
+const userRouter = require('./routes/userRouter')
 require('dotenv').config();
 
 app.get('/', (req, res) => {
@@ -13,6 +14,9 @@ app.get('/', (req, res) => {
 // -------------------- register && login routes
 app.use('/api/auth', authRouter)
 
+
+// -------------------- user -------------
+app.use('/api/user', userRouter)
 
 
 
