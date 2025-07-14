@@ -1,4 +1,4 @@
-const { createMockMonth, getAllMockMonths, deleteMockMonth, getMockMonthById } = require('../models/mockModel');
+const { createMockMonth, getAllMockMonths, deleteMockMonth, getMockMonthById, setActiveMockMonth, getActiveMockMonth } = require('../models/mockModel');
 
 const postMockMonth = (req, res) => {
     const { month } = req.body;
@@ -42,4 +42,25 @@ const removeMockMonth = (req, res) => {
     });
 };
 
-module.exports = { postMockMonth, getMockMonths, removeMockMonth, getOneMockMonth };
+
+
+const setActivemonth = (req, res) => {
+    const { mockId } = req.body;
+
+    if (!mockId) return res.status(400).json({ error: 'mockId is required' });
+
+    setActiveMockMonth(mockId, (err) => {
+        if (err) return res.status(500).json({ error: 'Failed to set active mock month' });
+        res.status(200).json({ msg: 'Active mock month set successfully', mockId });
+    });
+};
+
+const getActivemonth = (req, res) => {
+    getActiveMockMonth((err, row) => {
+        if (err) return res.status(500).json({ error: 'Failed to fetch active mock month' });
+        if (!row) return res.status(404).json({ msg: 'No active mock month set yet' });
+        res.status(200).json(row);
+    });
+};
+
+module.exports = { postMockMonth, getMockMonths, removeMockMonth, getOneMockMonth ,setActivemonth,getActivemonth};

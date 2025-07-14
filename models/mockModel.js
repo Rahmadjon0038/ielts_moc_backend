@@ -11,6 +11,12 @@ db.run(`CREATE TABLE IF NOT EXISTS mock_parts (
   part TEXT,
   FOREIGN KEY (mock_id) REFERENCES mock_months(id)
 )`);
+// models/mockModel.js ichiga qo‘sh
+db.run(`CREATE TABLE IF NOT EXISTS active_mock_month (
+  id INTEGER PRIMARY KEY CHECK (id = 1),  -- faqat bitta row bo‘ladi
+  mock_id INTEGER,
+  FOREIGN KEY (mock_id) REFERENCES mock_months(id)
+)`);
 
 // Oy qo‘shish
 const createMockMonth = (month, callback) => {
@@ -50,9 +56,39 @@ const getMockMonthById = (id, callback) => {
     });
 };
 
+// models/mockModel.js ichiga qo‘sh
+
+// active month id ni saqlash
+const setActiveMockMonth = (mockId, callback) => {
+    const query = `
+        INSERT INTO active_mock_month (id, mock_id)
+        VALUES (1, ?)
+        ON CONFLICT(id) DO UPDATE SET mock_id = excluded.mock_id
+    `;
+    db.run(query, [mockId], function (err) {
+        callback(err);
+    });
+};
+
+// active month id ni olish
+const getActiveMockMonth = (callback) => {
+    const query = `
+        SELECT mock_months.*
+        FROM active_mock_month
+        JOIN mock_months ON mock_months.id = active_mock_month.mock_id
+        WHERE active_mock_month.id = 1
+    `;
+    db.get(query, [], (err, row) => {
+        callback(err, row);
+    });
+};
+
+
 module.exports = {
     createMockMonth,
     getAllMockMonths,
     deleteMockMonth,
-    getMockMonthById
+    getMockMonthById,
+    setActiveMockMonth,
+    getActiveMockMonth
 };

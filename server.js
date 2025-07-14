@@ -19,6 +19,7 @@ app.use('/api/auth', authRouter)
 // -------------------- user -------------
 app.use('/api/user', userRouter)
 
+
 const mockRouter = require('./routes/mockRouter');
 app.use('/api/mock', mockRouter);
 
@@ -26,6 +27,8 @@ app.use('/api/mock', mockRouter);
 // ------------------- writing ----------------
 
 app.use('/api/mock', writingRouter)
+
+
 
 const { createWritingTable } = require('./models/writingModel');
 createWritingTable(); // <-- faqat bir marta chaqiladi
