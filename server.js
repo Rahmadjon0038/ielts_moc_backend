@@ -6,6 +6,7 @@ app.use(express.json())
 const authRouter = require('./routes/AuthRouter')
 const userRouter = require('./routes/userRouter')
 const writingRouter = require('./routes/writingRouter')
+const answerUserListRouter = require('./routes/answerUserListRouter')
 require('dotenv').config();
 
 app.get('/', (req, res) => {
@@ -28,10 +29,14 @@ app.use('/api/mock', mockRouter);
 
 app.use('/api/mock', writingRouter)
 
+// ----------------------- asnwers user --------------------
+app.use('/api/mock/users', answerUserListRouter)
 
 
-const { createWritingTable } = require('./models/writingModel');
+
+const { createWritingTable,createWritingAnswersTable } = require('./models/writingModel');
 createWritingTable(); // <-- faqat bir marta chaqiladi
+createWritingAnswersTable()
 const PORT = process.env.PORT
 
 app.listen(PORT, () => {

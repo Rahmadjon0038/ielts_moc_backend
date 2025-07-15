@@ -1,4 +1,4 @@
-const { upsertWritingTask, getWritingTask } = require('../models/writingModel');
+const { upsertWritingTask, getWritingTask, saveUserWritingAnswer, getWritingAnswersByMonthAndUser } = require('../models/writingModel');
 
 // Writing qo‘shish
 const setWriting = (req, res) => {
@@ -29,7 +29,55 @@ const getWriting = (req, res) => {
   });
 };
 
+
+// ---------------------------------- user natijasini yuborishi uchun api ------------------------
+// POST /api/writing/submit
+const userPostWritingAnswer = (req, res) => {
+  const { userId, monthId, section, answer } = req.body;
+
+  // null yoki undefined tekshiruv
+  if (
+    userId == null ||
+    monthId == null ||
+    !section ||
+    !answer?.task1 ||
+    !answer?.task2
+  ) {
+    return res.status(400).json({ msg: 'Barcha maydonlar to‘ldirilishi shart!' });
+  }
+
+  saveUserWritingAnswer(userId, monthId, section, answer, (err) => {
+    if (err) {
+      console.error('❌ Javobni saqlashda xatolik:', err.message);
+      return res.status(500).json({ msg: 'Saqlashda xatolik' });
+    }
+
+    res.json({ msg: '✅ Javoblar adminga yuborildi!' });
+  });
+};
+
+// GET /api/mock/writing/answers/:monthId/:userId
+const getUserWritingAnswersByMonth = (req, res) => {
+  const { monthId, userId } = req.params;
+
+  if (!monthId || !userId) {
+    return res.status(400).json({ msg: 'Month ID va User ID kerak' });
+  }
+
+  getWritingAnswersByMonthAndUser(monthId, userId, (err, answers) => {
+    if (err) {
+      console.error('❌ Writing javoblarini olishda xatolik:', err.message);
+      return res.status(500).json({ msg: 'Server xatoligi' });
+    }
+    res.json(answers);
+  });
+};
+
+
+
 module.exports = {
   setWriting,
-  getWriting
+  getWriting,
+  userPostWritingAnswer,
+  getUserWritingAnswersByMonth,
 };
