@@ -1,19 +1,20 @@
 const db = require('../config/db');
 
-
 // ================== WRITING TASKS (ADMIN UCHUN) ===================
 
-// Jadval yaratish (admin tomonidan qo‘yilgan writing topshiriqlar)
+// Jadval yaratish (rasm ustunlari bilan)
 const createWritingTable = () => {
   const query = `
     CREATE TABLE IF NOT EXISTS writing_tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      mock_id INTEGER UNIQUE,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      mock_id INT UNIQUE,
       task1 TEXT,
-      task2 TEXT
+      task2 TEXT,
+      task1_image TEXT,
+      task2_image TEXT
     )
   `;
-  db.run(query, (err) => {
+  db.query(query, (err) => {
     if (err) {
       console.error('❌ Writing jadvalini yaratishda xatolik:', err.message);
     } else {
@@ -22,45 +23,46 @@ const createWritingTable = () => {
   });
 };
 
-// Writing qo‘shish yoki yangilash (admin tomonidan)
-const upsertWritingTask = (mock_id, task1, task2, callback) => {
+// Writing qo‘shish yoki yangilash
+const upsertWritingTask = (mock_id, task1, task2, task1Image, task2Image, callback) => {
   const query = `
-    INSERT INTO writing_tasks (mock_id, task1, task2)
-    VALUES (?, ?, ?)
-    ON CONFLICT(mock_id) DO UPDATE SET
-      task1 = excluded.task1,
-      task2 = excluded.task2
+    INSERT INTO writing_tasks (mock_id, task1, task2, task1_image, task2_image)
+    VALUES (?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      task1 = VALUES(task1),
+      task2 = VALUES(task2),
+      task1_image = VALUES(task1_image),
+      task2_image = VALUES(task2_image)
   `;
-  db.run(query, [mock_id, task1, task2], function (err) {
+  db.query(query, [mock_id, task1, task2, task1Image, task2Image], (err, result) => {
     callback(err);
   });
 };
 
-// Admin tomonidan berilgan writing taskni olish
+// Writingni olish
 const getWritingTask = (mock_id, callback) => {
-  const query = `SELECT task1, task2 FROM writing_tasks WHERE mock_id = ?`;
-  db.get(query, [mock_id], (err, row) => {
-    callback(err, row);
+  const query = `SELECT task1, task2, task1_image, task2_image FROM writing_tasks WHERE mock_id = ?`;
+  db.query(query, [mock_id], (err, results) => {
+    callback(err, results[0]);
   });
 };
 
+// ================== WRITING ANSWERS (USER) ===================
 
-// ================== WRITING ANSWERS (USER YUBORGAN JAVOBLAR) ===================
-
-// Foydalanuvchi javoblari uchun jadval
 const createWritingAnswersTable = () => {
   const query = `
-    CREATE TABLE IF NOT EXISTS writing_answers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id TEXT,
-      month_id TEXT,
-      section TEXT,
-      task1 TEXT,
-      task2 TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
+   CREATE TABLE IF NOT EXISTS writing_answers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
+  month_id INT,
+  section TEXT,
+  task1 TEXT,
+  task2 TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_user_month_section (user_id, month_id, section)
+)
   `;
-  db.run(query, (err) => {
+  db.query(query, (err) => {
     if (err) {
       console.error('❌ writing_answers jadvalini yaratishda xatolik:', err.message);
     } else {
@@ -69,37 +71,104 @@ const createWritingAnswersTable = () => {
   });
 };
 
-// Foydalanuvchi javobini saqlash
 const saveUserWritingAnswer = (userId, monthId, section, answers, callback) => {
   const query = `
     INSERT INTO writing_answers (user_id, month_id, section, task1, task2)
     VALUES (?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      task1 = VALUES(task1),
+      task2 = VALUES(task2),
+      created_at = CURRENT_TIMESTAMP
   `;
-  db.run(query, [userId, monthId, section, answers.task1, answers.task2], function (err) {
+  db.query(query, [userId, monthId, section, answers.task1, answers.task2], (err, result) => {
     callback(err);
   });
 };
 
-// Bitta userning ma’lum oydagi writing javoblarini olish
+
 const getWritingAnswersByMonthAndUser = (monthId, userId, callback) => {
   const query = `
     SELECT * FROM writing_answers
     WHERE month_id = ? AND user_id = ?
   `;
-  db.all(query, [monthId, userId], (err, rows) => {
-    callback(err, rows);
+  db.query(query, [monthId, userId], (err, results) => {
+    callback(err, results);
+  });
+};
+
+
+
+
+
+
+
+
+
+
+
+
+// Raitinglar jadvalini yaratish
+const createRaitingsTable = () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS raitings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT,
+      month_id INT,
+      section VARCHAR(50),
+      score VARCHAR(10),
+      comment TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user_section_month (user_id, month_id, section)
+    )
+  `;
+  db.query(query, (err) => {
+    if (err) {
+      console.error('❌ Raitings jadvalini yaratishda xatolik:', err.message);
+    } else {
+      console.log('✅ raitings jadvali tayyor');
+    }
+  });
+};
+
+// Bahoni saqlash yoki yangilash
+const upsertUserRaiting = (user_id, month_id, section, score, comment, callback) => {
+  const query = `
+    INSERT INTO raitings (user_id, month_id, section, score, comment)
+    VALUES (?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      score = VALUES(score),
+      comment = VALUES(comment)
+  `;
+  db.query(query, [user_id, month_id, section, score, comment], (err, result) => {
+    callback(err);
+  });
+};
+
+// Bahoni olish
+const getUserRaitingmodel = (user_id, month_id, section, callback) => {
+  const query = `
+    SELECT * FROM raitings
+    WHERE user_id = ? AND month_id = ? AND section = ?
+  `;
+  db.query(query, [user_id, month_id, section], (err, results) => {
+    callback(err, results[0]);
   });
 };
 
 
 module.exports = {
-  // Tasks (admin)
+  // Admin
   createWritingTable,
   upsertWritingTask,
   getWritingTask,
-
-  // Answers (user)
+  // User
   createWritingAnswersTable,
   saveUserWritingAnswer,
-  getWritingAnswersByMonthAndUser
+  getWritingAnswersByMonthAndUser,
+
+  //rraitings
+  createRaitingsTable,
+  upsertUserRaiting,
+  getUserRaitingmodel
+
 };

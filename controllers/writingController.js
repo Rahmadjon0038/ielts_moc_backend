@@ -1,78 +1,174 @@
-const { upsertWritingTask, getWritingTask, saveUserWritingAnswer, getWritingAnswersByMonthAndUser } = require('../models/writingModel');
+const {
+  upsertWritingTask,
+  getWritingTask,
+  saveUserWritingAnswer,
+  getWritingAnswersByMonthAndUser,
+  upsertUserRaiting,
+  getUserRaitingmodel
+} = require('../models/writingModel');
 
-// Writing qo‘shish
+const db = require('../config/db')
+
+// ✅ Admin - Writing qo‘shish
 const setWriting = (req, res) => {
-  const mock_id = req.params.mock_id;
+  const { mock_id } = req.params;
   const { task1, task2 } = req.body;
 
+  const task1Image = req?.files?.task1Image?.[0]?.filename || null;
+  const task2Image = req?.files?.task2Image?.[0]?.filename || null;
+
   if (!task1 || !task2) {
-    return res.status(400).json({ msg: "Please complete both writing tasks." });
+    return res.status(400).json({ msg: " Ikkala writing topshirig‘i ham to‘ldirilishi kerak." });
   }
 
-  upsertWritingTask(mock_id, task1, task2, (err, id) => {
+  upsertWritingTask(mock_id, task1, task2, task1Image, task2Image, (err) => {
     if (err) {
-      return res.status(500).json({ msg: "Error adding writing", error: err.message });
+      return res.status(500).json({
+        msg: "Writing qo‘shishda xatolik",
+        error: err.message
+      });
     }
-    res.status(201).json({ msg: "Writing added", id });
+    res.status(201).json({ msg: "Writing muvaffaqiyatli qo‘shildi" });
   });
 };
 
-// Writinglarni olish
+// ✅ Writingni olish
 const getWriting = (req, res) => {
-  const mock_id = req.params.mock_id;
+  const { mock_id } = req.params;
 
-  getWritingTask(mock_id, (err, rows) => {
+  getWritingTask(mock_id, (err, data) => {
     if (err) {
-      return res.status(500).json({ msg: "Error retrieving data", error: err.message });
+      return res.status(500).json({
+        msg: "Ma’lumotni olishda xatolik",
+        error: err.message
+      });
     }
-    res.status(200).json(rows);
+    res.status(200).json(data || {});
   });
 };
 
-
-// ---------------------------------- user natijasini yuborishi uchun api ------------------------
-// POST /api/writing/submit
+// ✅ Foydalanuvchidan javobni qabul qilish
 const userPostWritingAnswer = (req, res) => {
   const { userId, monthId, section, answer } = req.body;
 
-  // null yoki undefined tekshiruv
   if (
-    userId == null ||
-    monthId == null ||
+    !userId ||
+    !monthId ||
     !section ||
     !answer?.task1 ||
     !answer?.task2
   ) {
-    return res.status(400).json({ msg: 'Barcha maydonlar to‘ldirilishi shart!' });
+    return res.status(400).json({ msg: ' Barcha maydonlar to‘ldirilishi kerak.' });
   }
 
   saveUserWritingAnswer(userId, monthId, section, answer, (err) => {
     if (err) {
-      console.error('❌ Javobni saqlashda xatolik:', err.message);
-      return res.status(500).json({ msg: 'Saqlashda xatolik' });
+      return res.status(500).json({
+        msg: ' Javobni saqlashda xatolik',
+        error: err.message
+      });
     }
-
-    res.json({ msg: '✅ Javoblar adminga yuborildi!' });
+    res.json({ msg: 'Javoblar muvaffaqiyatli saqlandi' });
   });
 };
 
-// GET /api/mock/writing/answers/:monthId/:userId
+//  Foydalanuvchi javoblarini olish (oy bo‘yicha)
 const getUserWritingAnswersByMonth = (req, res) => {
   const { monthId, userId } = req.params;
 
   if (!monthId || !userId) {
-    return res.status(400).json({ msg: 'Month ID va User ID kerak' });
+    return res.status(400).json({ msg: '❗ monthId va userId kerak' });
   }
 
   getWritingAnswersByMonthAndUser(monthId, userId, (err, answers) => {
     if (err) {
-      console.error('❌ Writing javoblarini olishda xatolik:', err.message);
-      return res.status(500).json({ msg: 'Server xatoligi' });
+      return res.status(500).json({
+        msg: '❌ Javoblarni olishda server xatoligi',
+        error: err.message
+      });
     }
-    res.json(answers);
+    res.json(answers || []);
   });
 };
 
+// ---------------- user raiting --------------------
+
+// ✅ Foydalanuvchini baholash (admin tomonidan)
+const setUserRaiting = (req, res) => {
+  const { montId, userid } = req.params;
+  const { section, score, comment } = req.body;
+
+  if (!section || !score) {
+    return res.status(400).json({ msg: "❗ Baho (score) va bo‘lim (section) to‘ldirilishi kerak." });
+  }
+
+  upsertUserRaiting(userid, montId, section, score, comment || '', (err) => {
+    if (err) {
+      return res.status(500).json({
+        msg: "❌ Bahoni saqlashda xatolik yuz berdi",
+        error: err.message
+      });
+    }
+
+    res.status(201).json({ msg: "Foydalanuvchi muvaffaqiyatli baholandi" });
+  });
+};
+
+// ✅ Foydalanuvchi bahosini olish (oy + bo‘lim bo‘yicha)
+const getUserRaiting = (req, res) => {
+  const { montId, userid } = req.params;
+  const { section } = req.query;
+
+  if (!section) {
+    return res.status(400).json({ msg: "❗ Qaysi bo‘lim uchun olish kerakligi aniqlanmagan (section)." });
+  }
+
+  getUserRaitingmodel(userid, montId, section, (err, result) => {
+    if (err) {
+      return res.status(500).json({
+        msg: " Bahoni olishda xatolik yuz berdi",
+        error: err.message
+      });
+    }
+
+    if (!result) {
+      return res.status(404).json({ msg: "ℹ Hali baho qo‘yilmagan." });
+    }
+
+    res.status(200).json(result);
+  });
+};
+
+
+
+// ✅ 4ta bo‘limni birgalikda olib beradigan controller
+const getAllRaitingsByMonth = (req, res) => {
+  const { montId, userid } = req.params;
+  const sections = ['Reading', 'Listening', 'Writing', 'Speaking'];
+
+  const query = `
+    SELECT section, score, comment FROM raitings
+    WHERE user_id = ? AND month_id = ?
+  `;
+
+  db.query(query, [userid, montId], (err, results) => {
+    if (err) {
+      return res.status(500).json({ msg: "Baholarni olishda xatolik", error: err.message });
+    }
+
+    // Bo‘sh bo‘lsa ham barcha bo‘limlar qaytishi kerak
+    const response = sections.map((sectionName) => {
+      const found = results.find((r) => r.section.toLowerCase() === sectionName.toLowerCase());
+      return {
+        section: sectionName,
+        score: found ? found.score : null,
+        comment: found ? found.comment : null,
+      };
+    });
+
+    res.status(200).json(response);
+  });
+};
 
 
 module.exports = {
@@ -80,4 +176,8 @@ module.exports = {
   getWriting,
   userPostWritingAnswer,
   getUserWritingAnswersByMonth,
+
+  setUserRaiting,
+  getUserRaiting,
+  getAllRaitingsByMonth
 };

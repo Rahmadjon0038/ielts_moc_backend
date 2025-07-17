@@ -8,6 +8,8 @@ const userRouter = require('./routes/userRouter')
 const writingRouter = require('./routes/writingRouter')
 const answerUserListRouter = require('./routes/answerUserListRouter')
 require('dotenv').config();
+const path = require('path');
+
 
 app.get('/', (req, res) => {
     res.json({ msg: "Ielts mock testga xush kelibsiz" })
@@ -32,11 +34,24 @@ app.use('/api/mock', writingRouter)
 // ----------------------- asnwers user --------------------
 app.use('/api/mock/users', answerUserListRouter)
 
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+// ---------------------- raitingRoutes --------------------
+const raitingRoutes = require('./routes/raitingRoutes')
+app.use('/api/user', raitingRoutes)
 
 
-const { createWritingTable,createWritingAnswersTable } = require('./models/writingModel');
+
+const { createWritingTable,createWritingAnswersTable, createRaitingsTable } = require('./models/writingModel');
+const { createMockTables } = require('./models/mockModel');
+const { createUsersTable } = require('./models/Auth');
 createWritingTable(); // <-- faqat bir marta chaqiladi
 createWritingAnswersTable()
+createUsersTable()
+createRaitingsTable()
+
+createMockTables(); // <-- faqat bir marta chaqiladi
+
 const PORT = process.env.PORT
 
 app.listen(PORT, () => {

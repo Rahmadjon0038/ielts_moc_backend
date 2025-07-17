@@ -1,12 +1,16 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { createUser, findUserByUsername, findUserByEmail } = require('../models/Auth');
 require('dotenv').config();
-
+const {
+  createUsersTable,
+  createUser,
+  findUserByUsername,
+  findUserByEmail}  = require('../models/Auth')
 const SECRET_KEY = process.env.JWT_SECRET || "sirliTokenKalit";
 
 const Register = (req, res) => {
   const { username, email, password, role } = req.body;
+  console.log(username,email,password,role)
 
   if (!username || !email || !password)
     return res.status(400).json({ msg: "Barcha maydonlar to‘ldirilishi kerak" });

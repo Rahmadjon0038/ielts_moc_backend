@@ -1,81 +1,95 @@
 const db = require('../config/db');
 
-// Jadval yaratishlar
-db.run(`CREATE TABLE IF NOT EXISTS mock_months (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  month TEXT UNIQUE
-)`);
+// 🛠 Jadval yaratishlar (faqat bir marta chaqiriladi)
+const createMockTables = () => {
+  const queries = [
+    `CREATE TABLE IF NOT EXISTS mock_months (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      month VARCHAR(255) UNIQUE
+    )`,
+    `CREATE TABLE IF NOT EXISTS mock_parts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      mock_id INT,
+      part VARCHAR(50),
+      FOREIGN KEY (mock_id) REFERENCES mock_months(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS active_mock_month (
+      id INT PRIMARY KEY CHECK (id = 1),
+      mock_id INT,
+      FOREIGN KEY (mock_id) REFERENCES mock_months(id) ON DELETE SET NULL
+    )`
+  ];
 
-db.run(`CREATE TABLE IF NOT EXISTS mock_parts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  mock_id INTEGER,
-  part TEXT,
-  FOREIGN KEY (mock_id) REFERENCES mock_months(id)
-)`);
+  queries.forEach(query => {
+    db.query(query, (err) => {
+      if (err) console.error("❌ Jadval yaratishda xatolik:", err);
+    });
+  });
+};
 
-db.run(`CREATE TABLE IF NOT EXISTS active_mock_month (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  mock_id INTEGER,
-  FOREIGN KEY (mock_id) REFERENCES mock_months(id)
-)`);
-
-// Oy qo‘shish
+// 🔘 Oy qo‘shish + 4ta part yaratish
 const createMockMonth = (month, callback) => {
-  const query = `INSERT INTO mock_months (month) VALUES (?)`;
-  db.run(query, [month], function (err) {
+  const insertMonth = `INSERT INTO mock_months (month) VALUES (?)`;
+  db.query(insertMonth, [month], (err, result) => {
     if (err) return callback(err);
 
-    const mockId = this.lastID;
+    const mockId = result.insertId;
     const parts = ['writing', 'listening', 'reading', 'speaking'];
-    const stmt = db.prepare("INSERT INTO mock_parts (mock_id, part) VALUES (?, ?)");
+    const partQueries = parts.map(part => [mockId, part]);
 
-    for (const part of parts) {
-      stmt.run(mockId, part);
-    }
-    stmt.finalize();
-
-    callback(null, mockId);
+    const insertParts = `INSERT INTO mock_parts (mock_id, part) VALUES ?`;
+    db.query(insertParts, [partQueries], (err2) => {
+      if (err2) return callback(err2);
+      callback(null, mockId);
+    });
   });
 };
 
+// 🔍 Barcha mock_months
 const getAllMockMonths = (callback) => {
-  db.all("SELECT * FROM mock_months", [], callback);
-};
-
-const deleteMockMonth = (id, callback) => {
-  db.run("DELETE FROM mock_months WHERE id = ?", [id], function (err) {
-    callback(err, this.changes);
+  db.query("SELECT * FROM mock_months", (err, results) => {
+    callback(err, results);
   });
 };
 
-const getMockMonthById = (id, callback) => {
-  db.get("SELECT * FROM mock_months WHERE id = ?", [id], callback);
+// ❌ O'chirish
+const deleteMockMonth = (id, callback) => {
+  db.query("DELETE FROM mock_months WHERE id = ?", [id], (err, result) => {
+    callback(err, result.affectedRows);
+  });
 };
 
-// ✅ TUZATILGAN: active_mock_month ni o‘rnatish yoki o‘chirish
+// 🔍 ID orqali topish
+const getMockMonthById = (id, callback) => {
+  db.query("SELECT * FROM mock_months WHERE id = ?", [id], (err, results) => {
+    callback(err, results[0]);
+  });
+};
+
+// ✅ active_mock_month ni o‘rnatish
 const setActiveMockMonth = (mockId, callback) => {
   const query = `
     INSERT INTO active_mock_month (id, mock_id)
     VALUES (1, ?)
-    ON CONFLICT(id) DO UPDATE SET mock_id = excluded.mock_id
+    ON DUPLICATE KEY UPDATE mock_id = VALUES(mock_id)
   `;
-  db.run(query, [mockId], function (err) {
-    callback(err);
+  db.query(query, [mockId], callback);
+};
+
+// 🔍 active_mock_month ni olish
+const getActiveMockMonth = (callback) => {
+  const query = `
+    SELECT m.* FROM active_mock_month a
+    LEFT JOIN mock_months m ON a.mock_id = m.id
+    WHERE a.id = 1
+  `;
+  db.query(query, (err, results) => {
+    callback(err, results[0]);
   });
 };
 
-// ✅ TUZATILGAN: LEFT JOIN orqali null ham qaytariladi
-const getActiveMockMonth = (callback) => {
-  const query = `
-    SELECT mock_months.*
-    FROM active_mock_month
-    LEFT JOIN mock_months ON mock_months.id = active_mock_month.mock_id
-    WHERE active_mock_month.id = 1
-  `;
-  db.get(query, [], callback);
-};
-
 module.exports = {
+  createMockTables,
   createMockMonth,
   getAllMockMonths,
   deleteMockMonth,

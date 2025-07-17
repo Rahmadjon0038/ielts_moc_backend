@@ -1,7 +1,17 @@
-const sqlite3 = require('sqlite3');
+const mysql = require('mysql2');
 
-const db = new sqlite3.Database('./database.db', sqlite3.OPEN_READWRITE, (err) => {
-    if (err) return console.log('Bazaga ulanishda hatolik 💀');
-    console.log('Ulanish mofaqqiyatli 😎');
-})
-module.exports = db
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'rahmadjon',
+    password: 'ieltsmock',
+    database: 'ieltsMock'
+});
+
+db.connect((err) => {
+    if (err) {
+        return console.log('Bazaga ulanishda xatolik 💀', err);
+    }
+    console.log('MariaDB bilan ulanish muvaffaqiyatli 😎');
+});
+
+module.exports = db;
