@@ -4,7 +4,8 @@ const {
   saveUserWritingAnswer,
   getWritingAnswersByMonthAndUser,
   upsertUserRaiting,
-  getUserRaitingmodel
+  getUserRaitingmodel,
+  getMonthStatistics
 } = require('../models/writingModel');
 
 const db = require('../config/db')
@@ -171,6 +172,26 @@ const getAllRaitingsByMonth = (req, res) => {
 };
 
 
+
+const getMonthStatsController = (req, res) => {
+  const monthId = req.params.montId
+
+  if (!monthId) {
+    return res.status(400).json({ message: 'Month ID kerak!' });
+  }
+
+  getMonthStatistics(monthId, (err, results) => {
+    if (err) {
+      console.error('Statistikani olishda xatolik:', err.message);
+      return res.status(500).json({ message: 'Server xatosi' });
+    }
+
+    res.json(results);
+  });
+};
+
+
+
 module.exports = {
   setWriting,
   getWriting,
@@ -179,5 +200,8 @@ module.exports = {
 
   setUserRaiting,
   getUserRaiting,
-  getAllRaitingsByMonth
+  getAllRaitingsByMonth,
+
+  getMonthStatsController
+
 };

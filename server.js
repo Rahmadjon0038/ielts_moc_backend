@@ -39,17 +39,20 @@ app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 // ---------------------- raitingRoutes --------------------
 const raitingRoutes = require('./routes/raitingRoutes')
 app.use('/api/user', raitingRoutes)
-
+const UntiedRouter = require('./routes/UntiedRouter')
+// ----------------------- user untimed ---------------
+app.use('/api/untied',UntiedRouter)
 
 
 const { createWritingTable,createWritingAnswersTable, createRaitingsTable } = require('./models/writingModel');
 const { createMockTables } = require('./models/mockModel');
 const { createUsersTable } = require('./models/Auth');
+const { createSubmissionsTable } = require('./models/untiedModel');
 createWritingTable(); // <-- faqat bir marta chaqiladi
 createWritingAnswersTable()
 createUsersTable()
 createRaitingsTable()
-
+createSubmissionsTable()  // qaysi oyda qaysi bolimni yechgani blocklash uchun
 createMockTables(); // <-- faqat bir marta chaqiladi
 
 const PORT = process.env.PORT

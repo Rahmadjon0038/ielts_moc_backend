@@ -8,6 +8,7 @@ const {
     setUserRaiting,
     getUserRaiting,
     getAllRaitingsByMonth,
+    getMonthStatsController,
 } = require('../controllers/writingController');
 
 const router = express.Router();
@@ -31,6 +32,14 @@ router.get('/writing/getraitings/:montId/:userid', getUserRaiting)
 
 // ---------------- user all ------------------
 
-router.get('/writing/getallraitings/:montId/:userid', getAllRaitingsByMonth)
+router.get('/writing/getallraitings/:montId/:userid', getAllRaitingsByMonth),
+
+
+
+
+// --------------------------- admin uchun kim qaysi bolimlarga baxo olgamii hizobash ----------- 
+router.get('/admin/month-stats/:montId', getMonthStatsController),
+
+
 
 module.exports = router;

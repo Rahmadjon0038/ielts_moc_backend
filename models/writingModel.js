@@ -156,6 +156,24 @@ const getUserRaitingmodel = (user_id, month_id, section, callback) => {
 };
 
 
+
+const getMonthStatistics = (monthId, callback) => {
+  const query = `
+    SELECT 
+      wa.user_id,
+      COUNT(DISTINCT r.section) AS rated_sections
+    FROM writing_answers wa
+    LEFT JOIN raitings r 
+      ON wa.user_id = r.user_id AND wa.month_id = r.month_id
+    WHERE wa.month_id = ?
+    GROUP BY wa.user_id
+  `;
+  db.query(query, [monthId], (err, results) => {
+    callback(err, results);
+  });
+};
+
+
 module.exports = {
   // Admin
   createWritingTable,
@@ -169,6 +187,8 @@ module.exports = {
   //rraitings
   createRaitingsTable,
   upsertUserRaiting,
-  getUserRaitingmodel
+  getUserRaitingmodel,
+
+  getMonthStatistics
 
 };
