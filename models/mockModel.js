@@ -22,12 +22,12 @@ const createMockTables = () => {
 
   queries.forEach(query => {
     db.query(query, (err) => {
-      if (err) console.error("❌ Jadval yaratishda xatolik:", err);
+      if (err) console.error(" Jadval yaratishda xatolik:", err);
     });
   });
 };
 
-// 🔘 Oy qo‘shish + 4ta part yaratish
+//  Oy qo‘shish + 4ta part yaratish
 const createMockMonth = (month, callback) => {
   const insertMonth = `INSERT INTO mock_months (month) VALUES (?)`;
   db.query(insertMonth, [month], (err, result) => {
@@ -45,28 +45,28 @@ const createMockMonth = (month, callback) => {
   });
 };
 
-// 🔍 Barcha mock_months
+//  Barcha mock_months
 const getAllMockMonths = (callback) => {
   db.query("SELECT * FROM mock_months", (err, results) => {
     callback(err, results);
   });
 };
 
-// ❌ O'chirish
+//  O'chirish
 const deleteMockMonth = (id, callback) => {
   db.query("DELETE FROM mock_months WHERE id = ?", [id], (err, result) => {
     callback(err, result.affectedRows);
   });
 };
 
-// 🔍 ID orqali topish
+//  ID orqali topish
 const getMockMonthById = (id, callback) => {
   db.query("SELECT * FROM mock_months WHERE id = ?", [id], (err, results) => {
     callback(err, results[0]);
   });
 };
 
-// ✅ active_mock_month ni o‘rnatish
+//  active_mock_month ni o‘rnatish
 const setActiveMockMonth = (mockId, callback) => {
   const query = `
     INSERT INTO active_mock_month (id, mock_id)
@@ -76,7 +76,7 @@ const setActiveMockMonth = (mockId, callback) => {
   db.query(query, [mockId], callback);
 };
 
-// 🔍 active_mock_month ni olish
+//  active_mock_month ni olish
 const getActiveMockMonth = (callback) => {
   const query = `
     SELECT m.* FROM active_mock_month a

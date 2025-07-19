@@ -9,7 +9,7 @@ const {
 
 const db = require('../config/db')
 
-// ✅ Admin - Writing qo‘shish
+// Admin - Writing qo‘shish
 const setWriting = (req, res) => {
   const { mock_id } = req.params;
   const { task1, task2 } = req.body;
@@ -32,7 +32,7 @@ const setWriting = (req, res) => {
   });
 };
 
-// ✅ Writingni olish
+// Writingni olish
 const getWriting = (req, res) => {
   const { mock_id } = req.params;
 
@@ -47,7 +47,7 @@ const getWriting = (req, res) => {
   });
 };
 
-// ✅ Foydalanuvchidan javobni qabul qilish
+// Foydalanuvchidan javobni qabul qilish
 const userPostWritingAnswer = (req, res) => {
   const { userId, monthId, section, answer } = req.body;
 
@@ -93,7 +93,7 @@ const getUserWritingAnswersByMonth = (req, res) => {
 
 // ---------------- user raiting --------------------
 
-// ✅ Foydalanuvchini baholash (admin tomonidan)
+// Foydalanuvchini baholash (admin tomonidan)
 const setUserRaiting = (req, res) => {
   const { montId, userid } = req.params;
   const { section, score, comment } = req.body;
@@ -114,7 +114,7 @@ const setUserRaiting = (req, res) => {
   });
 };
 
-// ✅ Foydalanuvchi bahosini olish (oy + bo‘lim bo‘yicha)
+// Foydalanuvchi bahosini olish (oy + bo‘lim bo‘yicha)
 const getUserRaiting = (req, res) => {
   const { montId, userid } = req.params;
   const { section } = req.query;
@@ -141,7 +141,7 @@ const getUserRaiting = (req, res) => {
 
 
 
-// ✅ 4ta bo‘limni birgalikda olib beradigan controller
+// 4ta bo‘limni birgalikda olib beradigan controller
 const getAllRaitingsByMonth = (req, res) => {
   const { montId, userid } = req.params;
   const sections = ['Reading', 'Listening', 'Writing', 'Speaking'];
