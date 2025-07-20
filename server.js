@@ -41,19 +41,30 @@ const raitingRoutes = require('./routes/raitingRoutes')
 app.use('/api/user', raitingRoutes)
 const UntiedRouter = require('./routes/UntiedRouter')
 // ----------------------- user untimed ---------------
-app.use('/api/untied',UntiedRouter)
+app.use('/api/untied', UntiedRouter)
 
 
-const { createWritingTable,createWritingAnswersTable, createRaitingsTable } = require('./models/writingModel');
+
+// -------------------- REDING ---------------
+const readingRouter = require('./routes/readingRouter');
+app.use('/api/reading', readingRouter)
+
+
+
+
+const { createWritingTable, createWritingAnswersTable, createRaitingsTable } = require('./models/writingModel');
 const { createMockTables } = require('./models/mockModel');
 const { createUsersTable } = require('./models/Auth');
 const { createSubmissionsTable } = require('./models/untiedModel');
+const { createReadingTable, createReadingTables } = require('./models/readingsModels');
 createWritingTable(); // <-- faqat bir marta chaqiladi
 createWritingAnswersTable()
 createUsersTable()
 createRaitingsTable()
 createSubmissionsTable()  // qaysi oyda qaysi bolimni yechgani blocklash uchun
 createMockTables(); // <-- faqat bir marta chaqiladi
+// createReadingTable()
+createReadingTables()
 
 const PORT = process.env.PORT
 

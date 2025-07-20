@@ -35,8 +35,6 @@ router.get('/writing/getraitings/:montId/:userid', getUserRaiting)
 router.get('/writing/getallraitings/:montId/:userid', getAllRaitingsByMonth),
 
 
-
-
 // --------------------------- admin uchun kim qaysi bolimlarga baxo olgamii hizobash ----------- 
 router.get('/admin/month-stats/:montId', getMonthStatsController),
 
