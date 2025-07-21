@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-//  1. Jadval yaratish
+// 1. Jadval yaratish
 const createReadingTables = () => {
   const createPartsTable = `
     CREATE TABLE IF NOT EXISTS reading_parts (
@@ -22,12 +22,10 @@ const createReadingTables = () => {
     )
   `;
 
-  // Avval parts jadvalini yaratamiz
   db.query(createPartsTable, (err) => {
     if (err) return console.error("❌ reading_parts jadvali xatosi:", err);
     console.log("✅ reading_parts jadvali yaratildi.");
 
-    // Keyin questions jadvalini yaratamiz
     db.query(createQuestionsTable, (err) => {
       if (err) return console.error("❌ reading_questions jadvali xatosi:", err);
       console.log("✅ reading_questions jadvali yaratildi.");
@@ -35,16 +33,16 @@ const createReadingTables = () => {
   });
 };
 
-// ➕ 2. Part qo‘shish
+// 2. Part qo‘shish
 const createPart = ({ monthId, part, intro, passage }, callback) => {
   const query = `INSERT INTO reading_parts (monthId, part, intro, passage) VALUES (?, ?, ?, ?)`;
   db.query(query, [monthId, part, intro, passage], (err, result) => {
     if (err) return callback(err);
-    callback(null, result.insertId); // partId
+    callback(null, result.insertId);
   });
 };
 
-// ➕ 3. Savol qo‘shish
+// 3. Savol qo‘shish
 const createQuestion = ({ partId, questionText, type, options }, callback) => {
   const optionsJSON = JSON.stringify(options || []);
   const query = `INSERT INTO reading_questions (partId, questionText, type, options) VALUES (?, ?, ?, ?)`;
@@ -54,7 +52,30 @@ const createQuestion = ({ partId, questionText, type, options }, callback) => {
   });
 };
 
-// 🔍 4. monthId bo‘yicha barcha part va savollarni olish
+// 4. Partni topish (upsert uchun)
+const findPartByMonthAndPart = (monthId, part, callback) => {
+  const query = `SELECT * FROM reading_parts WHERE monthId = ? AND part = ? LIMIT 1`;
+  db.query(query, [monthId, part], (err, results) => {
+    if (err) return callback(err);
+    callback(null, results[0]); // bo‘sh bo‘lsa undefined qaytadi
+  });
+};
+
+// 5. Partni yangilash
+const updatePart = ({ partId, intro, passage }, callback) => {
+  const query = `UPDATE reading_parts SET intro = ?, passage = ? WHERE id = ?`;
+  db.query(query, [intro, passage, partId], callback);
+};
+
+// 6. Savollarni o‘chirish
+const deleteQuestionsByPartId = (partId, callback) => {
+  const query = `DELETE FROM reading_questions WHERE partId = ?`;
+  db.query(query, [partId], callback);
+};
+
+// models/readingsModels.js
+
+// 7. Barcha part va savollarni olish (monthId bo‘yicha)
 const getReadingByMonthId = (monthId, callback) => {
   const query = `
     SELECT 
@@ -69,17 +90,18 @@ const getReadingByMonthId = (monthId, callback) => {
     FROM reading_parts rp
     LEFT JOIN reading_questions rq ON rp.id = rq.partId
     WHERE rp.monthId = ?
-    ORDER BY rp.part, rq.id
+    ORDER BY rp.part ASC, rq.id ASC
   `;
 
   db.query(query, [monthId], (err, results) => {
     if (err) return callback(err);
 
     const partsMap = {};
+    let questionCounter = 1;
 
     results.forEach(row => {
-      if (!partsMap[row.partId]) {
-        partsMap[row.partId] = {
+      if (!partsMap[row.part]) {
+        partsMap[row.part] = {
           part: row.part,
           intro: row.intro,
           passage: row.passage,
@@ -88,8 +110,9 @@ const getReadingByMonthId = (monthId, callback) => {
       }
 
       if (row.questionId) {
-        partsMap[row.partId].questions.push({
+        partsMap[row.part].questions.push({
           id: row.questionId,
+          number: questionCounter++,
           text: row.questionText,
           type: row.type,
           options: row.options ? JSON.parse(row.options) : []
@@ -97,14 +120,22 @@ const getReadingByMonthId = (monthId, callback) => {
       }
     });
 
-    const partsArray = Object.values(partsMap);
+    // part raqamiga qarab tartiblab massivga o‘tkazamiz
+    const partsArray = Object.keys(partsMap)
+      .sort((a, b) => a - b)
+      .map(key => partsMap[key]);
+
     callback(null, partsArray);
   });
 };
+
 
 module.exports = {
   createReadingTables,
   createPart,
   createQuestion,
+  findPartByMonthAndPart,
+  updatePart,
+  deleteQuestionsByPartId,
   getReadingByMonthId
 };
