@@ -1,109 +1,105 @@
-const readingModel = require('../models/readingsModels');
+const { getReadingByMonthId, createReadingSection } = require('../models/readingsModels');
+const Joi = require('joi');
 
-// 1. GET — Barcha part va savollarni olish
-const getReadingQuestions = (req, res) => {
+// JSON validatsiya sxemasi
+const readingSchema = Joi.object({
+  monthId: Joi.number().required(),
+  sections: Joi.array().items(
+    Joi.object({
+      part: Joi.string().required(),
+      intro: Joi.string().required(),
+      textTitle: Joi.string().required(),
+      text: Joi.string().required(),
+      question: Joi.array().items(
+        Joi.object({
+          questionTitle: Joi.string().required(),
+          questionIntro: Joi.string().required(),
+          questionsTask: Joi.array().items(
+            Joi.object({
+              type: Joi.string().valid('radio', 'select', 'checkbox', 'text-multi', 'table').required(),
+
+              // `number` faqat radio/select/checkbox uchun kerak
+              number: Joi.when('type', {
+                is: Joi.valid('radio', 'select', 'checkbox'),
+                then: Joi.number().required(),
+                otherwise: Joi.forbidden()
+              }),
+
+              // `numbers` faqat text-multi/table uchun kerak
+              numbers: Joi.when('type', {
+                is: Joi.valid('text-multi', 'table'),
+                then: Joi.array().items(Joi.number()).required(),
+                otherwise: Joi.forbidden()
+              }),
+
+              question: Joi.when('type', {
+                is: Joi.valid('radio', 'select', 'checkbox', 'text-multi'),
+                then: Joi.string().required(),
+                otherwise: Joi.forbidden()
+              })
+              ,
+
+              // `options` faqat radio/select/checkbox uchun
+              options: Joi.when('type', {
+                is: Joi.valid('radio', 'select', 'checkbox'),
+                then: Joi.array().items(Joi.string()).required(),
+                otherwise: Joi.forbidden()
+              }),
+
+              // `maxSelect` faqat checkbox uchun optional
+              maxSelect: Joi.when('type', {
+                is: 'checkbox',
+                then: Joi.number().optional(),
+                otherwise: Joi.forbidden()
+              }),
+
+              // `table` faqat table tipida optional
+              table: Joi.when('type', {
+                is: 'table',
+                then: Joi.any().optional(),
+                otherwise: Joi.forbidden()
+              }),
+            })
+          )
+        })
+      )
+    })
+  )
+});
+
+// 📥 getQuestionReading — monthId orqali savollarni olish
+const getQuestionReading = (req, res) => {
   const { monthId } = req.params;
 
-  readingModel.getReadingByMonthId(monthId, (err, parts) => {
+  getReadingByMonthId({ monthId: parseInt(monthId) }, (err, result) => {
     if (err) {
-      console.error("❌ Ma'lumotlarni olishda xatolik:", err);
-      return res.status(500).json({ message: "Server xatoligi" });
+      console.error('❌ Savollarni olishda xatolik:', err);
+      return res.status(500).json({ message: 'Server xatosi' });
     }
-
-    if (!parts || parts.length === 0) {
-      return res.status(404).json({ message: `${monthId} oyi uchun hech qanday part topilmadi.` });
+    if (!result.length) {
+      return res.status(404).json({ message: 'Bu oy uchun test topilmadi' });
     }
-
-    res.status(200).json({
-      monthId,
-      parts
-    });
+    res.json(result);
   });
 };
 
-// 2. POST — Yangi part qo‘shish yoki mavjudini yangilash
-const addReadingPart = (req, res) => {
-  const { monthId, part, intro, passage, questions } = req.body;
-
-  if (!monthId || !part || !intro || !passage || !questions) {
-    return res.status(400).json({ message: "Barcha maydonlar to‘ldirilishi kerak" });
+// 📤 addQuestionReading — yangi reading test qo‘shish yoki yangilash
+const addQuestionReading = (req, res) => {
+  const { error, value } = readingSchema.validate(req.body);
+  if (error) {
+    console.error('❌ Validatsiya xatosi:', error.details[0].message);
+    return res.status(400).json({ message: error.details[0].message });
   }
 
-  // 1. Tekshiramiz: shu part bor yoki yo‘qligini
-  readingModel.findPartByMonthAndPart(monthId, part, (err, existingPart) => {
+  const { monthId, sections } = value;
+
+  createReadingSection({ monthId: parseInt(monthId), sections }, (err, result) => {
     if (err) {
-      console.error("❌ Partni qidirishda xatolik:", err);
-      return res.status(500).json({ message: "Partni qidirishda xatolik yuz berdi" });
+      console.error('❌ Test qo‘shish/yangilashda xatolik:', err);
+      return res.status(500).json({ message: 'Test qo‘shish/yangilashda xato yuz berdi' });
     }
-
-    if (existingPart) {
-      // 🔄 Mavjud bo‘lsa: yangilaymiz
-      const partId = existingPart.id;
-
-      readingModel.updatePart({ partId, intro, passage }, (err) => {
-        if (err) {
-          console.error("❌ Partni yangilashda xatolik:", err);
-          return res.status(500).json({ message: "Partni yangilab bo‘lmadi" });
-        }
-
-        // Savollarni tozalaymiz
-        readingModel.deleteQuestionsByPartId(partId, (err) => {
-          if (err) {
-            console.error("❌ Savollarni o‘chirishda xatolik:", err);
-            return res.status(500).json({ message: "Savollarni tozalab bo‘lmadi" });
-          }
-
-          // Yangi savollarni qo‘shamiz
-          insertQuestions(partId, questions, res, "Part yangilandi va savollar yangitdan qo‘shildi");
-        });
-      });
-
-    } else {
-      // ➕ Yangi part yaratamiz
-      readingModel.createPart({ monthId, part, intro, passage }, (err, partId) => {
-        if (err) {
-          console.error("❌ Yangi part qo‘shishda xatolik:", err);
-          return res.status(500).json({ message: "Yangi partni yaratib bo‘lmadi" });
-        }
-
-        // Savollarni qo‘shamiz
-        insertQuestions(partId, questions, res, "Yangi part va savollar muvaffaqiyatli qo‘shildi");
-      });
-    }
+    res.status(201).json({ message: 'Reading test muvaffaqiyatli yangilandi', result });
   });
 };
 
-// 3. Savollarni qo‘shish (yordamchi funksiya)
-const insertQuestions = (partId, questions, res, successMessage) => {
-  let count = 0;
-
-  if (!questions.length) {
-    return res.status(400).json({ message: "Hech qanday savollar berilmagan" });
-  }
-
-  questions.forEach((q) => {
-    const questionData = {
-      partId,
-      questionText: q.text,
-      type: q.type,
-      options: q.options || [],
-    };
-
-    readingModel.createQuestion(questionData, (err) => {
-      if (err) {
-        console.error("❌ Savol qo‘shishda xatolik:", err);
-        return res.status(500).json({ message: "Savollarni qo‘shib bo‘lmadi" });
-      }
-
-      count++;
-      if (count === questions.length) {
-        res.status(200).json({ message: successMessage });
-      }
-    });
-  });
-};
-
-module.exports = {
-  getReadingQuestions,
-  addReadingPart
-};
+module.exports = { getQuestionReading, addQuestionReading };

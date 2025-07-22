@@ -1,9 +1,9 @@
 const express = require('express');
-const { getReadingQuestions, addReadingPart } = require('../controllers/readingController');
+const { getQuestionReading, addQuestionReading } = require('../controllers/readingController');
 const router = express.Router();
 
-router.get('/get/:monthId', getReadingQuestions);
-router.post('/add', addReadingPart);
+router.get('/get/:monthId', getQuestionReading);
+router.post('/add', addQuestionReading);
 
 
 module.exports = router;

@@ -1,141 +1,253 @@
 const db = require('../config/db');
 
-// 1. Jadval yaratish
+// Jadval yaratish
 const createReadingTables = () => {
-  const createPartsTable = `
-    CREATE TABLE IF NOT EXISTS reading_parts (
+  const queries = [
+    `CREATE TABLE IF NOT EXISTS reading_sections (
       id INT AUTO_INCREMENT PRIMARY KEY,
       monthId INT NOT NULL,
-      part INT NOT NULL,
+      part VARCHAR(50),
       intro TEXT,
-      passage TEXT
-    )
-  `;
-  const createQuestionsTable = `
-    CREATE TABLE IF NOT EXISTS reading_questions (
+      textTitle VARCHAR(255),
+      text TEXT,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS questions_groups (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      partId INT NOT NULL,
-      questionText TEXT,
-      type ENUM('radio', 'select', 'input'),
-      options TEXT,
-      FOREIGN KEY (partId) REFERENCES reading_parts(id) ON DELETE CASCADE
-    )
-  `;
+      reading_section_id INT NOT NULL,
+      questionTitle VARCHAR(255),
+      questionIntro TEXT,
+      FOREIGN KEY (reading_section_id) REFERENCES reading_sections(id) ON DELETE CASCADE,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS questions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      questions_group_id INT NOT NULL,
+      number INT,
+      type ENUM('radio', 'select', 'text-multi', 'table', 'checkbox') NOT NULL,
+      question TEXT,
+      options JSON,
+      maxSelect INT DEFAULT 1,
+      FOREIGN KEY (questions_group_id) REFERENCES questions_groups(id) ON DELETE CASCADE,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS text_multi_answers (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      question_id INT NOT NULL,
+      number INT NOT NULL,
+      answer TEXT DEFAULT '',
+      FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ];
 
-  db.query(createPartsTable, (err) => {
-    if (err) return console.error("❌ reading_parts jadvali xatosi:", err);
-    console.log("✅ reading_parts jadvali yaratildi.");
-
-    db.query(createQuestionsTable, (err) => {
-      if (err) return console.error("❌ reading_questions jadvali xatosi:", err);
-      console.log("✅ reading_questions jadvali yaratildi.");
+  queries.forEach((query, i) => {
+    db.query(query, (err) => {
+      if (err) console.error(`❌ ${i + 1}-jadvalda xatolik:`, err);
+      else console.log(`✅ ${i + 1}-jadval yaratildi.`);
     });
   });
 };
 
-// 2. Part qo‘shish
-const createPart = ({ monthId, part, intro, passage }, callback) => {
-  const query = `INSERT INTO reading_parts (monthId, part, intro, passage) VALUES (?, ?, ?, ?)`;
-  db.query(query, [monthId, part, intro, passage], (err, result) => {
-    if (err) return callback(err);
-    callback(null, result.insertId);
-  });
-};
-
-// 3. Savol qo‘shish
-const createQuestion = ({ partId, questionText, type, options }, callback) => {
-  const optionsJSON = JSON.stringify(options || []);
-  const query = `INSERT INTO reading_questions (partId, questionText, type, options) VALUES (?, ?, ?, ?)`;
-  db.query(query, [partId, questionText, type, optionsJSON], (err, result) => {
-    if (err) return callback(err);
-    callback(null, result.insertId);
-  });
-};
-
-// 4. Partni topish (upsert uchun)
-const findPartByMonthAndPart = (monthId, part, callback) => {
-  const query = `SELECT * FROM reading_parts WHERE monthId = ? AND part = ? LIMIT 1`;
-  db.query(query, [monthId, part], (err, results) => {
-    if (err) return callback(err);
-    callback(null, results[0]); // bo‘sh bo‘lsa undefined qaytadi
-  });
-};
-
-// 5. Partni yangilash
-const updatePart = ({ partId, intro, passage }, callback) => {
-  const query = `UPDATE reading_parts SET intro = ?, passage = ? WHERE id = ?`;
-  db.query(query, [intro, passage, partId], callback);
-};
-
-// 6. Savollarni o‘chirish
-const deleteQuestionsByPartId = (partId, callback) => {
-  const query = `DELETE FROM reading_questions WHERE partId = ?`;
-  db.query(query, [partId], callback);
-};
-
-// models/readingsModels.js
-
-// 7. Barcha part va savollarni olish (monthId bo‘yicha)
-const getReadingByMonthId = (monthId, callback) => {
-  const query = `
-    SELECT 
-      rp.id AS partId,
-      rp.part,
-      rp.intro,
-      rp.passage,
-      rq.id AS questionId,
-      rq.questionText,
-      rq.type,
-      rq.options
-    FROM reading_parts rp
-    LEFT JOIN reading_questions rq ON rp.id = rq.partId
-    WHERE rp.monthId = ?
-    ORDER BY rp.part ASC, rq.id ASC
-  `;
-
-  db.query(query, [monthId], (err, results) => {
+// Reading section va savollarni saqlovchi funksiyasi
+const createReadingSection = ({ monthId, sections }, callback) => {
+  db.beginTransaction((err) => {
     if (err) return callback(err);
 
-    const partsMap = {};
-    let questionCounter = 1;
+    db.query(`DELETE FROM reading_sections WHERE monthId = ?`, [monthId], (err) => {
+      if (err) return db.rollback(() => callback(err));
 
-    results.forEach(row => {
-      if (!partsMap[row.part]) {
-        partsMap[row.part] = {
-          part: row.part,
-          intro: row.intro,
-          passage: row.passage,
-          questions: []
-        };
-      }
+      const insertSection = (section, cb) => {
+        db.query(
+          `INSERT INTO reading_sections (monthId, part, intro, textTitle, text) VALUES (?, ?, ?, ?, ?)`,
+          [monthId, section.part, section.intro, section.textTitle, section.text],
+          (err, sectionRes) => {
+            if (err) return cb(err);
+            const sectionId = sectionRes.insertId;
 
-      if (row.questionId) {
-        partsMap[row.part].questions.push({
-          id: row.questionId,
-          number: questionCounter++,
-          text: row.questionText,
-          type: row.type,
-          options: row.options ? JSON.parse(row.options) : []
+            const insertGroup = (group, cbGroup) => {
+              db.query(
+                `INSERT INTO questions_groups (reading_section_id, questionTitle, questionIntro) VALUES (?, ?, ?)`,
+                [sectionId, group.questionTitle, group.questionIntro],
+                (err, groupRes) => {
+                  if (err) return cbGroup(err);
+                  const groupId = groupRes.insertId;
+
+                  const tasks = group.questionsTask || [];
+                  let doneCount = 0;
+
+                  if (!tasks.length) return cbGroup(null);
+
+                  tasks.forEach((task) => {
+                    const number = task.number || task.numbers?.[0] || 0;
+                    const options = task.options ? JSON.stringify(task.options) : null;
+
+                    const questionContent =
+                      task.type === 'table' ? JSON.stringify(task.table || []) : task.question;
+                    db.query(
+                      `INSERT INTO questions (questions_group_id, number, type, question, options, maxSelect) VALUES (?, ?, ?, ?, ?, ?)`,
+                      [groupId, number, task.type, questionContent, options, task.maxSelect || 1],
+                      (err, questionRes) => {
+                        if (err) return cbGroup(err);
+                        const questionId = questionRes.insertId;
+
+                        if (task.type === 'text-multi' || task.type === 'table') {
+                          const nums = task.numbers || [];
+                          if (!nums.length) return finishQuestion();
+
+                          let inserted = 0;
+                          nums.forEach((num) => {
+                            db.query(
+                              `INSERT INTO text_multi_answers (question_id, number, answer) VALUES (?, ?, ?)`,
+                              [questionId, num, ''],
+                              (err) => {
+                                if (err) return cbGroup(err);
+                                inserted++;
+                                if (inserted === nums.length) finishQuestion();
+                              }
+                            );
+                          });
+                        } else {
+                          finishQuestion();
+                        }
+
+                        function finishQuestion() {
+                          doneCount++;
+                          if (doneCount === tasks.length) cbGroup(null);
+                        }
+                      }
+                    );
+                  });
+                }
+              );
+            };
+
+            const groups = section.question || [];
+            if (!groups.length) return cb(null);
+
+            let groupDone = 0;
+            groups.forEach((g) => {
+              insertGroup(g, (err) => {
+                if (err) return cb(err);
+                groupDone++;
+                if (groupDone === groups.length) cb(null);
+              });
+            });
+          }
+        );
+      };
+
+      let sectionDone = 0;
+      if (!sections.length) return db.commit(() => callback(null, { message: 'Bo‘limlar yo‘q' }));
+
+      sections.forEach((section) => {
+        insertSection(section, (err) => {
+          if (err) return db.rollback(() => callback(err));
+          sectionDone++;
+          if (sectionDone === sections.length) {
+            db.commit((err) => {
+              if (err) return db.rollback(() => callback(err));
+              callback(null, { message: '✅ Maʼlumotlar muvaffaqiyatli qo‘shildi' });
+            });
+          }
         });
-      }
+      });
     });
-
-    // part raqamiga qarab tartiblab massivga o‘tkazamiz
-    const partsArray = Object.keys(partsMap)
-      .sort((a, b) => a - b)
-      .map(key => partsMap[key]);
-
-    callback(null, partsArray);
   });
 };
 
+const getReadingByMonthId = ({ monthId }, callback) => {
+  db.query(`SELECT * FROM reading_sections WHERE monthId = ?`, [monthId], (err, sections) => {
+    if (err) return callback(err);
+    if (!sections.length) return callback(null, []);
+
+    const result = [];
+    let sectionCount = 0;
+
+    sections.forEach((section) => {
+      db.query(`SELECT * FROM questions_groups WHERE reading_section_id = ?`, [section.id], (err, groups) => {
+        if (err) return callback(err);
+
+        if (!groups.length) {
+          section.question = [];
+          result.push(section);
+          sectionCount++;
+          if (sectionCount === sections.length) callback(null, result);
+          return;
+        }
+
+        let groupCount = 0;
+
+        groups.forEach((group) => {
+          db.query(`SELECT * FROM questions WHERE questions_group_id = ?`, [group.id], (err, questions) => {
+            if (err) return callback(err);
+
+            if (!questions.length) {
+              group.questionsTask = [];
+              finalizeGroup();
+              return;
+            }
+
+            let questionCount = 0;
+            const finalQuestions = [];
+
+            questions.forEach((question) => {
+              question.options = question.options ? JSON.parse(question.options) : [];
+
+              // Agar table bo‘lsa, uni JSON qilib ajrat
+              if (question.type === "table") {
+                try {
+                  question.table = JSON.parse(question.question || "[]");
+                } catch (e) {
+                  question.table = [];
+                }
+                question.question = null; // endi bu JSON emas
+              }
+
+              if (question.type === 'text-multi' || question.type === 'table') {
+                db.query(`SELECT * FROM text_multi_answers WHERE question_id = ?`, [question.id], (err, answers) => {
+                  if (err) return callback(err);
+                  question.answers = answers || [];
+                  question.numbers = answers.map(ans => ans.number);
+                  finalQuestions.push(question);
+                  questionCount++;
+                  if (questionCount === questions.length) {
+                    group.questionsTask = finalQuestions;
+                    finalizeGroup();
+                  }
+                });
+              } else {
+                question.answers = [];
+                question.numbers = question.number ? [question.number] : [];
+                finalQuestions.push(question);
+                questionCount++;
+                if (questionCount === questions.length) {
+                  group.questionsTask = finalQuestions;
+                  finalizeGroup();
+                }
+              }
+            });
+
+            function finalizeGroup() {
+              groupCount++;
+              if (groupCount === groups.length) {
+                section.question = groups;
+                result.push(section);
+                sectionCount++;
+                if (sectionCount === sections.length) {
+                  callback(null, result);
+                }
+              }
+            }
+          });
+        });
+      });
+    });
+  });
+};
 
 module.exports = {
   createReadingTables,
-  createPart,
-  createQuestion,
-  findPartByMonthAndPart,
-  updatePart,
-  deleteQuestionsByPartId,
-  getReadingByMonthId
+  createReadingSection,
+  getReadingByMonthId,
 };
