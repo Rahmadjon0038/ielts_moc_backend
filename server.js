@@ -57,6 +57,7 @@ const { createMockTables } = require('./models/mockModel');
 const { createUsersTable } = require('./models/Auth');
 const { createSubmissionsTable } = require('./models/untiedModel');
 const { createReadingTables } = require('./models/readingsModels');
+const { createReadingAnswersTable } = require('./models/readingAnsWerModel');
 createWritingTable(); // <-- faqat bir marta chaqiladi
 createWritingAnswersTable()
 createUsersTable()
@@ -65,6 +66,12 @@ createSubmissionsTable()  // qaysi oyda qaysi bolimni yechgani blocklash uchun
 createMockTables(); // <-- faqat bir marta chaqiladi
 
 createReadingTables()
+
+
+
+
+createReadingAnswersTable()
+
 
 const PORT = process.env.PORT
 
