@@ -50,6 +50,9 @@ const readingRouter = require('./routes/readingRouter');
 app.use('/api/reading', readingRouter)
 
 
+// ----------------------------------Listening -----------------------------
+const listeningRouter = require('./routes/listeningRouter')
+app.use('/api/listening', listeningRouter)
 
 
 const { createWritingTable, createWritingAnswersTable, createRaitingsTable } = require('./models/writingModel');
@@ -58,6 +61,7 @@ const { createUsersTable } = require('./models/Auth');
 const { createSubmissionsTable } = require('./models/untiedModel');
 const { createReadingTables } = require('./models/readingsModels');
 const { createReadingAnswersTable } = require('./models/readingAnsWerModel');
+const { createListeningAnswersTable } = require('./models/listeningModel');
 createWritingTable(); // <-- faqat bir marta chaqiladi
 createWritingAnswersTable()
 createUsersTable()
@@ -72,6 +76,7 @@ createReadingTables()
 
 createReadingAnswersTable()
 
+createListeningAnswersTable()
 
 const PORT = process.env.PORT
 
