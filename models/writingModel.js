@@ -51,16 +51,16 @@ const getWritingTask = (mock_id, callback) => {
 
 const createWritingAnswersTable = () => {
   const query = `
-   CREATE TABLE IF NOT EXISTS writing_answers (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT,
-  month_id INT,
-  section TEXT,
-  task1 TEXT,
-  task2 TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY unique_user_month_section (user_id, month_id, section)
-)
+    CREATE TABLE IF NOT EXISTS writing_answers (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT,
+      month_id INT,
+      section VARCHAR(100),
+      task1 TEXT,
+      task2 TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user_month_section (user_id, month_id, section(50))
+    )
   `;
   db.query(query, (err) => {
     if (err) {
@@ -85,7 +85,6 @@ const saveUserWritingAnswer = (userId, monthId, section, answers, callback) => {
   });
 };
 
-
 const getWritingAnswersByMonthAndUser = (monthId, userId, callback) => {
   const query = `
     SELECT * FROM writing_answers
@@ -96,18 +95,8 @@ const getWritingAnswersByMonthAndUser = (monthId, userId, callback) => {
   });
 };
 
+// ================== RAITINGS ===================
 
-
-
-
-
-
-
-
-
-
-
-// Raitinglar jadvalini yaratish
 const createRaitingsTable = () => {
   const query = `
     CREATE TABLE IF NOT EXISTS raitings (
@@ -155,7 +144,7 @@ const getUserRaitingmodel = (user_id, month_id, section, callback) => {
   });
 };
 
-
+// ================== STATISTICS ===================
 
 const getMonthStatistics = (monthId, callback) => {
   const query = `
@@ -173,7 +162,6 @@ const getMonthStatistics = (monthId, callback) => {
   });
 };
 
-
 module.exports = {
   // Admin
   createWritingTable,
@@ -183,12 +171,10 @@ module.exports = {
   createWritingAnswersTable,
   saveUserWritingAnswer,
   getWritingAnswersByMonthAndUser,
-
-  //rraitings
+  // Raitings
   createRaitingsTable,
   upsertUserRaiting,
   getUserRaitingmodel,
-
+  // Stats
   getMonthStatistics
-
 };
