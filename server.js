@@ -12,7 +12,7 @@ const path = require('path');
 
 
 app.get('/', (req, res) => {
-    res.json({ msg: "Ielts mock testga xush kelibsiz" })
+    res.json({ msg: "Ielts mock testga xush kelibsiz salommat" })
 })
 
 // -------------------- register && login routes

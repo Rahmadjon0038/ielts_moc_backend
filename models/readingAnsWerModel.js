@@ -3,7 +3,7 @@ const db = require('../config/db');
 // 📦 Jadval yaratish
 const createReadingAnswersTable = () => {
   const query = `
-    CREATE TABLE IF NOT EXISTS reading_answersAdminAdmin (
+    CREATE TABLE IF NOT EXISTS reading_answersAdmin (
       id INT AUTO_INCREMENT PRIMARY KEY,
       userId INT NOT NULL,
       monthId INT NOT NULL,
