@@ -54,6 +54,10 @@ app.use('/api/reading', readingRouter)
 const listeningRouter = require('./routes/listeningRouter')
 app.use('/api/listening', listeningRouter)
 
+// ----------------------- Timer ------------------------
+const timerRouter = require('./routes/timerRouter')
+app.use('/api/section-time', timerRouter);
+
 
 const { createWritingTable, createWritingAnswersTable, createRaitingsTable } = require('./models/writingModel');
 const { createMockTables } = require('./models/mockModel');
@@ -62,6 +66,7 @@ const { createSubmissionsTable } = require('./models/untiedModel');
 const { createReadingTables } = require('./models/readingsModels');
 const { createReadingAnswersTable } = require('./models/readingAnsWerModel');
 const { createListeningAnswersTable } = require('./models/listeningModel');
+const { createSectionTimerTable } = require('./models/timerModel');
 createWritingTable(); // <-- faqat bir marta chaqiladi
 createWritingAnswersTable()
 createUsersTable()
@@ -72,9 +77,13 @@ createMockTables(); // <-- faqat bir marta chaqiladi
 createReadingTables()
 
 
+createSectionTimerTable(),
 
 
-createReadingAnswersTable()
+
+
+
+    createReadingAnswersTable()
 
 createListeningAnswersTable()
 
