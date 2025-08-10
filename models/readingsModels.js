@@ -28,6 +28,7 @@ const createReadingTables = () => {
       question TEXT,
       options JSON,
       maxSelect INT DEFAULT 1,
+      answer TEXT DEFAULT NULL,
       FOREIGN KEY (questions_group_id) REFERENCES questions_groups(id) ON DELETE CASCADE,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -48,6 +49,7 @@ const createReadingTables = () => {
     });
   });
 };
+
 const createReadingSection = (data, callback) => {
   const { monthId, sections = [] } = data;
 
@@ -139,12 +141,13 @@ const createReadingSection = (data, callback) => {
                   q.type,
                   questionText,
                   options,
-                  q.maxSelect || 1
+                  q.maxSelect || 1,
+                  Array.isArray(q.answer) ? JSON.stringify(q.answer) : q.answer || null
                 ];
 
                 const questionQuery = `
-                  INSERT INTO questions (questions_group_id, number, type, question, options, maxSelect)
-                  VALUES (?, ?, ?, ?, ?, ?)
+                  INSERT INTO questions (questions_group_id, number, type, question, options, maxSelect, answer)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)
                 `;
 
                 connection.query(questionQuery, questionData, (err, questionResult) => {
@@ -161,8 +164,10 @@ const createReadingSection = (data, callback) => {
                         answers.push([questionId, row.number, row.question]);
                       });
                     } else {
-                      q.numbers.forEach(num => {
-                        answers.push([questionId, num, ""]);
+                      q.numbers.forEach((num, idx) => {
+                        // text-multi uchun answer massiv bo'lishi mumkin
+                        const ans = Array.isArray(q.answer) ? (q.answer[idx] || "") : "";
+                        answers.push([questionId, num, ans]);
                       });
                     }
 
@@ -206,7 +211,6 @@ const createReadingSection = (data, callback) => {
     });
   });
 };
-
 
 
 // Readingni monthId bo‘yicha olish
@@ -255,6 +259,8 @@ const getReadingByMonthId = ({ monthId }, callback) => {
                 question.question = null;
               }
 
+              // answer ustuni har doim qaytariladi
+              // text-multi va table uchun answers massivdan olinadi
               if (['text-multi', 'table'].includes(question.type)) {
                 db.query(`SELECT * FROM text_multi_answers WHERE question_id = ?`, [question.id], (err, answers) => {
                   if (err) return callback(err);

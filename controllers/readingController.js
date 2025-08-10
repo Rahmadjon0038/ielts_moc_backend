@@ -59,6 +59,9 @@ const readingSchema = Joi.object({
                 then: Joi.any().optional(),
                 otherwise: Joi.forbidden()
               }),
+
+              // `answer` barcha turlar uchun optional (admin to'g'ri javob kiritadi)
+              answer: Joi.any().optional(),
             })
           )
         })

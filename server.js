@@ -44,7 +44,6 @@ const UntiedRouter = require('./routes/UntiedRouter')
 app.use('/api/untied', UntiedRouter)
 
 
-
 // -------------------- REDING ---------------
 const readingRouter = require('./routes/readingRouter');
 app.use('/api/reading', readingRouter)
