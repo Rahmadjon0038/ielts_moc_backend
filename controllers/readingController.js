@@ -88,6 +88,7 @@ const getQuestionReading = (req, res) => {
 
 // 📤 addQuestionReading — yangi reading test qo‘shish yoki yangilash
 const addQuestionReading = (req, res) => {
+    console.log('Kelayotgan JSON:', req.body);  
   const { error, value } = readingSchema.validate(req.body);
   if (error) {
     console.error('❌ Validatsiya xatosi:', error.details[0].message);
