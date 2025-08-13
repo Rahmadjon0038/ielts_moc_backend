@@ -5,22 +5,22 @@ const setUntied = (req, res) => {
   const { userId, monthId, section } = req.body;
 
   if (!userId || !monthId || !section) {
-    return res.status(400).json({ error: 'userId, monthId va section majburiy' });
+    return res.status(400).json({ error: 'userId, monthId and section are required' });
   }
 
   // Avval tekshiramiz — bu user allaqachon yechganmi
   hasUserSubmitted({ userId, monthId, section }, (err, alreadySubmitted) => {
-    if (err) return res.status(500).json({ error: 'Server xatosi' });
+    if (err) return res.status(500).json({ error: 'Server error occurred' });
 
     if (alreadySubmitted) {
-      return res.status(409).json({ message: 'Siz bu bo‘limni allaqachon yechgansiz' });
+      return res.status(409).json({ message: 'You have already solved this section.' });
     }
 
     // Agar hali yechmagan bo‘lsa — saqlaymiz
     createSubmission({ userId, monthId, section }, (err, insertId) => {
-      if (err) return res.status(500).json({ error: 'Saqlashda xatolik' });
+      if (err) return res.status(500).json({ error: 'Error saving submission' });
 
-      res.status(201).json({ message: '✅ Yechilgan bo‘lim saqlandi', id: insertId });
+      res.status(201).json({ message: 'Submission successfully saved', id: insertId });
     });
   });
 };
@@ -30,14 +30,14 @@ const getUntied = (req, res) => {
   const { userId, monthId, section } = req.query;
 
   if (!userId || !monthId || !section) {
-    return res.status(400).json({ error: 'userId, monthId va section kerak' });
+    return res.status(400).json({ error: 'userId, monthId and section are required' });
   }
 
   hasUserSubmitted({ userId, monthId, section }, (err, alreadySubmitted) => {
-    if (err) return res.status(500).json({ error: 'Server xatosi' });
+    if (err) return res.status(500).json({ error: 'Server error occurred' });
 
     if (alreadySubmitted) {
-      res.json({ submitted: true, message: 'Siz bu bo‘limni allaqachon yechgansiz' });
+      res.json({ submitted: true, message: 'You have already solved this section.' });
     } else {
       res.json({ submitted: false });
     }

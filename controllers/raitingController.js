@@ -13,14 +13,14 @@ const getParticipatedMonths = (req, res) => {
   db.query(query, [userId], (err, results) => {
     if (err) {
       return res.status(500).json({
-        msg: "Foydalanuvchi oylarini olishda xatolik",
+        msg: "Error getting users months",
         error: err.message
       });
     }
 
     if (results.length === 0) {
       return res.status(404).json({
-        msg: "ℹBu foydalanuvchi hech qanday imtihonda qatnashmagan."
+        msg: "ℹThis user has not participated in any exams."
       });
     }
 

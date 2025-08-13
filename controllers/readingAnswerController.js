@@ -7,7 +7,7 @@ const submitReadingAnswers = async (req, res) => {
 
 
   if (!userId || !monthId || !Array.isArray(questions)) {
-    return res.status(400).json({ message: ' Maʼlumotlar toʻliq emas.' });
+    return res.status(400).json({ message: 'The information is incomplete.' });
   }
 
   const formattedAnswers = questions.map(q => ({
@@ -23,10 +23,10 @@ const submitReadingAnswers = async (req, res) => {
 
   saveReadingAnswers(formattedAnswers, (err, result) => {
     if (err) {
-      return res.status(500).json({ message: ' Javoblarni saqlashda xatolik', error: err });
+      return res.status(500).json({ message: 'Error saving answers', error: err });
     }
 
-    return res.status(201).json({ message: ' Javoblar muvaffaqiyatli saqlandi.' });
+    return res.status(201).json({ message: 'Answers successfully saved.' });
   });
 };
 
@@ -35,12 +35,12 @@ const getReadingAnswers = (req, res) => {
   const { userId, monthId } = req.query;
 
   if (!userId || !monthId) {
-    return res.status(400).json({ message: ' Parametrlar yetarli emas.' });
+    return res.status(400).json({ message: 'Insufficient parameters.' });
   }
 
   getReadingAnswersByUserAndMonth({ userId, monthId }, (err, results) => {
     if (err) {
-      return res.status(500).json({ message: ' Maʼlumotlarni olishda xatolik', error: err });
+      return res.status(500).json({ message: 'Error fetching data', error: err });
     }
 
     return res.status(200).json(results);

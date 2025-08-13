@@ -19,17 +19,17 @@ const setWriting = (req, res) => {
   const task2Image = req?.files?.task2Image?.[0]?.filename || null;
 
   if (!task1 || !task2) {
-    return res.status(400).json({ msg: " Ikkala writing topshirig‘i ham to‘ldirilishi kerak." });
+    return res.status(400).json({ msg: "Both writing assignments must be completed.." });
   }
 
   upsertWritingTask(mock_id, task1, task2, task1Image, task2Image, (err) => {
     if (err) {
       return res.status(500).json({
-        msg: "Writing qo‘shishda xatolik",
+        msg: "Error adding writing",
         error: err.message
       });
     }
-    res.status(201).json({ msg: "Writing muvaffaqiyatli qo‘shildi" });
+    res.status(201).json({ msg: "Writing successfully added" });
   });
 };
 
@@ -40,7 +40,7 @@ const getWriting = (req, res) => {
   getWritingTask(mock_id, (err, data) => {
     if (err) {
       return res.status(500).json({
-        msg: "Ma’lumotni olishda xatolik",
+        msg: "Error fetching data",
         error: err.message
       });
     }
@@ -59,17 +59,17 @@ const userPostWritingAnswer = (req, res) => {
     !answer?.task1 ||
     !answer?.task2
   ) {
-    return res.status(400).json({ msg: ' Barcha maydonlar to‘ldirilishi kerak.' });
+    return res.status(400).json({ msg: 'All fields must be filled.' });
   }
 
   saveUserWritingAnswer(userId, monthId, section, answer, (err) => {
     if (err) {
       return res.status(500).json({
-        msg: ' Javobni saqlashda xatolik',
+        msg: 'Error saving answer',
         error: err.message
       });
     }
-    res.json({ msg: 'Javoblar muvaffaqiyatli saqlandi' });
+    res.json({ msg: 'Answers successfully saved' });
   });
 };
 
@@ -78,13 +78,13 @@ const getUserWritingAnswersByMonth = (req, res) => {
   const { monthId, userId } = req.params;
 
   if (!monthId || !userId) {
-    return res.status(400).json({ msg: '❗ monthId va userId kerak' });
+    return res.status(400).json({ msg: 'monthId and userId are required' });
   }
 
   getWritingAnswersByMonthAndUser(monthId, userId, (err, answers) => {
     if (err) {
       return res.status(500).json({
-        msg: '❌ Javoblarni olishda server xatoligi',
+        msg: 'Error fetching answers',
         error: err.message
       });
     }
@@ -100,18 +100,18 @@ const setUserRaiting = (req, res) => {
   const { section, score, comment } = req.body;
 
   if (!section || !score) {
-    return res.status(400).json({ msg: "❗ Baho (score) va bo‘lim (section) to‘ldirilishi kerak." });
+    return res.status(400).json({ msg: "The score and section must be filled out." });
   }
 
   upsertUserRaiting(userid, montId, section, score, comment || '', (err) => {
     if (err) {
       return res.status(500).json({
-        msg: "❌ Bahoni saqlashda xatolik yuz berdi",
+        msg: "Error saving rating",
         error: err.message
       });
     }
 
-    res.status(201).json({ msg: "Foydalanuvchi muvaffaqiyatli baholandi" });
+    res.status(201).json({ msg: "User successfully rated" });
   });
 };
 
@@ -121,19 +121,19 @@ const getUserRaiting = (req, res) => {
   const { section } = req.query;
 
   if (!section) {
-    return res.status(400).json({ msg: "❗ Qaysi bo‘lim uchun olish kerakligi aniqlanmagan (section)." });
+    return res.status(400).json({ msg: "It is not specified for which section it should be taken." });
   }
 
   getUserRaitingmodel(userid, montId, section, (err, result) => {
     if (err) {
       return res.status(500).json({
-        msg: " Bahoni olishda xatolik yuz berdi",
+        msg: "Error fetching rating",
         error: err.message
       });
     }
 
     if (!result) {
-      return res.status(404).json({ msg: "ℹ Hali baho qo‘yilmagan." });
+      return res.status(404).json({ msg: "ℹ Rating not found." });
     }
 
     res.status(200).json(result);
@@ -154,7 +154,7 @@ const getAllRaitingsByMonth = (req, res) => {
 
   db.query(query, [userid, montId], (err, results) => {
     if (err) {
-      return res.status(500).json({ msg: "Baholarni olishda xatolik", error: err.message });
+      return res.status(500).json({ msg: "Error fetching ratings", error: err.message });
     }
 
     // Bo‘sh bo‘lsa ham barcha bo‘limlar qaytishi kerak
@@ -177,13 +177,13 @@ const getMonthStatsController = (req, res) => {
   const monthId = req.params.montId
 
   if (!monthId) {
-    return res.status(400).json({ message: 'Month ID kerak!' });
+    return res.status(400).json({ message: 'Month ID required!' });
   }
 
   getMonthStatistics(monthId, (err, results) => {
     if (err) {
-      console.error('Statistikani olishda xatolik:', err.message);
-      return res.status(500).json({ message: 'Server xatosi' });
+      console.error('Error fetching statistics:', err.message);
+      return res.status(500).json({ message: 'Server error occurred' });
     }
 
     res.json(results);

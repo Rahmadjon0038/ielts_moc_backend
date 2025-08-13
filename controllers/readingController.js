@@ -76,11 +76,11 @@ const getQuestionReading = (req, res) => {
 
   getReadingByMonthId({ monthId: parseInt(monthId) }, (err, result) => {
     if (err) {
-      console.error('❌ Savollarni olishda xatolik:', err);
-      return res.status(500).json({ message: 'Server xatosi' });
+      console.error('Error fetching questions:', err);
+      return res.status(500).json({ message: 'Server error occurred' });
     }
     if (!result.length) {
-      return res.status(404).json({ message: 'Bu oy uchun test topilmadi' });
+      return res.status(404).json({ message: 'No test found for this month' });
     }
     res.json(result);
   });
@@ -88,10 +88,8 @@ const getQuestionReading = (req, res) => {
 
 // 📤 addQuestionReading — yangi reading test qo‘shish yoki yangilash
 const addQuestionReading = (req, res) => {
-    console.log('Kelayotgan JSON:', req.body);  
   const { error, value } = readingSchema.validate(req.body);
   if (error) {
-    console.error('❌ Validatsiya xatosi:', error.details[0].message);
     return res.status(400).json({ message: error.details[0].message });
   }
 
@@ -99,10 +97,10 @@ const addQuestionReading = (req, res) => {
 
   createReadingSection({ monthId: parseInt(monthId), sections }, (err, result) => {
     if (err) {
-      console.error('❌ Test qo‘shish/yangilashda xatolik:', err);
-      return res.status(500).json({ message: 'Test qo‘shish/yangilashda xato yuz berdi' });
+      console.error('Error adding/updating test:', err);
+      return res.status(500).json({ message: 'Error adding/updating test' });
     }
-    res.status(201).json({ message: 'Reading test muvaffaqiyatli yangilandi', result });
+    res.status(201).json({ message: 'Reading test successfully updated', result });
   });
 };
 

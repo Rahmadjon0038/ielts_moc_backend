@@ -27,8 +27,8 @@ const getMockMonths = (req, res) => {
 const getOneMockMonth = (req, res) => {
   const id = req.params.id;
   getMockMonthById(id, (err, row) => {
-    if (err) return res.status(500).json({ error: 'Serverda xatolik' });
-    if (!row) return res.status(404).json({ msg: 'Mock topilmadi' });
+    if (err) return res.status(500).json({ error: 'Server error' });
+    if (!row) return res.status(404).json({ msg: 'Mock not found' });
     res.json(row);
   });
 };
@@ -37,7 +37,7 @@ const removeMockMonth = (req, res) => {
   const id = req.params.id;
   deleteMockMonth(id, (err, changes) => {
     if (err) return res.status(500).json({ error: 'Server error' });
-    if (changes === 0) return res.status(404).json({ msg: 'month not found' });
+    if (changes === 0) return res.status(404).json({ msg: 'Month not found' });
     res.json({ msg: 'Mock deleted' });
   });
 };

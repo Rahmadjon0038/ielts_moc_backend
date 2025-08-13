@@ -13,18 +13,18 @@ const Register = (req, res) => {
   console.log(username,email,password,role)
 
   if (!username || !email || !password)
-    return res.status(400).json({ msg: "Barcha maydonlar to‘ldirilishi kerak" });
+    return res.status(400).json({ msg: "All fields must be filled in." });
 
   findUserByEmail(email, (err, userByEmail) => {
-    if (err) return res.status(500).json({ msg: "Server xatolik" });
-    if (userByEmail) return res.status(400).json({ msg: "Email mavjud" });
+    if (err) return res.status(500).json({ msg: "Server error" });
+    if (userByEmail) return res.status(400).json({ msg: "Email already exists" });
 
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     // Agar role kelmasa 'user' sifatida qabul qilamiz
     createUser({ username, email, password: hashedPassword, role: role || 'user' }, (err, userId) => {
-      if (err) return res.status(500).json({ msg: "Foydalanuvchi yaratishda xato" });
-      res.status(201).json({ msg: "Ro‘yxatdan o‘tish muvaffaqiyatli" });
+      if (err) return res.status(500).json({ msg: "Error creating user" });
+      res.status(201).json({ msg: "Registration successful" });
     });
   });
 };
@@ -34,14 +34,14 @@ const Login = (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password)
-    return res.status(400).json({ msg: "Username va parol kiriting" });
+    return res.status(400).json({ msg: "Please enter username and password" });
 
   findUserByUsername(username, (err, user) => {
-    if (err) return res.status(500).json({ msg: "Server xatolik" });
-    if (!user) return res.status(400).json({ msg: "Foydalanuvchi topilmadi" });
+    if (err) return res.status(500).json({ msg: "Server error" });
+    if (!user) return res.status(400).json({ msg: "User not found" });
 
     const valid = bcrypt.compareSync(password, user.password);
-    if (!valid) return res.status(401).json({ msg: "Parol noto‘g‘ri" });
+    if (!valid) return res.status(401).json({ msg: "Incorrect password" });
 
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
@@ -49,7 +49,7 @@ const Login = (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ msg: "Login muvaffaqiyatli", token });
+    res.json({ msg: "Login successful", token });
   });
 };
 

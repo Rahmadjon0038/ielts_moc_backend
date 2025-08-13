@@ -16,7 +16,7 @@ const addListeningAnswer = (req, res) => {
   const deleteQuery = `DELETE FROM listening_answers WHERE userId = ? AND monthId = ?`;
   db.query(deleteQuery, [userId, monthId], (deleteErr) => {
     if (deleteErr) {
-      console.error('❌ Oldingi javoblarni o‘chirishda xatolik:', deleteErr);
+      console.error('Error deleting previous replies:', deleteErr);
       return res.status(500).json({ message: 'Failed to delete old answers' });
     }
 
@@ -38,11 +38,11 @@ const addListeningAnswer = (req, res) => {
 
     db.query(insertQuery, [values], (insertErr, result) => {
       if (insertErr) {
-        console.error('❌ Yangi javoblarni qo‘shishda xatolik:', insertErr);
+        console.error('Error adding new replies:', insertErr);
         return res.status(500).json({ message: 'Failed to save answers' });
       }
 
-      res.status(201).json({ message: '✅ Javoblar muvaffaqiyatli yangilandi', inserted: result.affectedRows });
+      res.status(201).json({ message: 'Answers successfully updated', inserted: result.affectedRows });
     });
   });
 };
@@ -53,8 +53,8 @@ const getListeningAnswer = (req, res) => {
 
   getListeningAnswersByUser(userId, monthId, (err, answers) => {
     if (err) {
-      console.error("❌ Javoblarni olishda xatolik:", err);
-      return res.status(500).json({ message: '❌ Server xatolik yuz berdi' });
+      console.error("Error fetching answers:", err);
+      return res.status(500).json({ message: 'Server error occurred' });
     }
 
     // userAnswer va options ni xavfsiz o'qish
@@ -64,7 +64,7 @@ const getListeningAnswer = (req, res) => {
       options: item.options ? JSON.parse(item.options) : []
     }));
 
-    res.json({ message: '✅ Javoblar olindi', answers: parsedAnswers });
+    res.json({ message: 'Answers fetched successfully', answers: parsedAnswers });
   });
 };
 
