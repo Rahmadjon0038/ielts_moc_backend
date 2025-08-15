@@ -6,7 +6,7 @@ const createUsersTable = () => {
   const query = `
     CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      username VARCHAR(255) UNIQUE,
+      username VARCHAR(255) ,
       email VARCHAR(255) UNIQUE,
       password VARCHAR(255),
       role VARCHAR(50) DEFAULT 'user'
@@ -14,9 +14,9 @@ const createUsersTable = () => {
   `;
   db.query(query, (err) => {
     if (err) {
-      console.error('❌ Users jadvalini yaratishda xatolik:', err);
+      console.error('Users jadvalini yaratishda xatolik:', err);
     } else {
-      console.log('✅ Users jadvali tayyor.');
+      console.log(' Users jadvali tayyor.');
     }
   });
 };
@@ -41,12 +41,13 @@ const findUserByUsername = (username, callback) => {
 
 // 🔍 Email bo‘yicha topish
 const findUserByEmail = (email, callback) => {
-  const query = `SELECT * FROM users WHERE email = ?`;
+  const query = `SELECT * FROM users WHERE BINARY email = ?`;
   db.query(query, [email], (err, results) => {
     if (err) return callback(err);
     callback(null, results[0]);
   });
 };
+
 
 module.exports = {
   createUsersTable,

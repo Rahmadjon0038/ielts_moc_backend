@@ -57,6 +57,10 @@ app.use('/api/listening', listeningRouter)
 const timerRouter = require('./routes/timerRouter')
 app.use('/api/section-time', timerRouter);
 
+// ----------------------- Audio ------------------------
+const audioRouter = require('./routes/audioRouter')
+app.use('/api/audio', audioRouter);
+
 
 const { createWritingTable, createWritingAnswersTable, createRaitingsTable } = require('./models/writingModel');
 const { createMockTables } = require('./models/mockModel');
@@ -66,6 +70,8 @@ const { createReadingTables } = require('./models/readingsModels');
 const { createReadingAnswersTable } = require('./models/readingAnsWerModel');
 const { createListeningAnswersTable } = require('./models/listeningModel');
 const { createSectionTimerTable } = require('./models/timerModel');
+const { createAudioTable } = require('./models/audioModel');
+const { createTables } = require('./models/listeningTaskModel');
 createWritingTable(); // <-- faqat bir marta chaqiladi
 createWritingAnswersTable()
 createUsersTable()
@@ -75,16 +81,18 @@ createMockTables(); // <-- faqat bir marta chaqiladi
 
 createReadingTables()
 
-
 createSectionTimerTable(),
 
-
-
-
-
-    createReadingAnswersTable()
+createReadingAnswersTable()
 
 createListeningAnswersTable()
+
+// createListeningTaskTable()
+// audio fayllarni saqlash uchun
+createAudioTable()
+
+createTables()
+
 
 const PORT = process.env.PORT
 
