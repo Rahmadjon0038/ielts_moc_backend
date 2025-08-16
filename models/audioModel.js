@@ -59,8 +59,26 @@ const getAudiosByMonth = (monthId, callback) => {
   );
 };
 
+// month bo'yicha barcha audio fayllarni o'chirish
+const deleteAudiosByMonth = (monthId, callback) => {
+    // 1️⃣ Avval fayllarni olish
+    db.query('SELECT * FROM audios WHERE month_id = ?', [monthId], (err, results) => {
+        if (err) return callback(err);
+
+        // 2️⃣ Har bir faylni public papkadan o'chirish
+        results.forEach(audio => {
+            const filePath = path.join(__dirname, "../public/uploads/audio", audio.filename);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        });
+
+        // 3️⃣ Bazadan ham o'chirish
+        db.query('DELETE FROM audios WHERE month_id = ?', [monthId], callback);
+    });
+};
+
 module.exports = {
   createAudioTable,
   saveAudio,
-  getAudiosByMonth
+  getAudiosByMonth,
+  deleteAudiosByMonth
 };
