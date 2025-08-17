@@ -71,7 +71,7 @@ const { createReadingAnswersTable } = require('./models/readingAnsWerModel');
 const { createListeningAnswersTable } = require('./models/listeningModel');
 const { createSectionTimerTable } = require('./models/timerModel');
 const { createAudioTable } = require('./models/audioModel');
-const { createTables } = require('./models/listeningTaskModel');
+const { createTables, createListeningTable } = require('./models/listeningTaskModel');
 createWritingTable(); // <-- faqat bir marta chaqiladi
 createWritingAnswersTable()
 createUsersTable()
@@ -91,8 +91,7 @@ createListeningAnswersTable()
 // audio fayllarni saqlash uchun
 createAudioTable()
 
-createTables()
-
+createListeningTable()
 
 const PORT = process.env.PORT
 

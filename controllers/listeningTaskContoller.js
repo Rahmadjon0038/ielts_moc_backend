@@ -1,46 +1,69 @@
-// controllers/listeningTaskController.js
-const tasksModel = require('../models/listeningTaskModel');
+const { saveListeningTest, getListeningTestByMonth } = require("../models/listeningTaskModel");
 
-// POST - Yangi task qo‘shish
-const addTask = (req, res) => {
-  const { monthId, sections } = req.body;
+// Listening test yaratish yoki yangilash
+const createOrUpdateListeningTest = (req, res) => {
+  const testData = req.body;
+  const monthId = parseInt(testData.monthId);
 
-  tasksModel.saveReadingData(monthId, sections, (err) => {
-    if (err) {
-      console.error('Error adding task:', err);
-      return res.status(500).json({ error: 'Task qo‘shishda xatolik yuz berdi' });
-    }
-    res.status(201).json({ message: 'Task muvaffaqiyatli qo‘shildi' });
-  });
-};
-
-// GET - Month ID bo‘yicha tasklarni olish
-const getTasksByMonth = (req, res) => {
-  const { month_id } = req.params;
-  const monthId = parseInt(month_id, 10);
-
-  if (isNaN(monthId)) {
-    return res.status(400).json({ error: 'Noto‘g‘ri monthId format' });
+  if (!monthId || !testData.sections) {
+    return res.status(400).json({ 
+      message: "monthId va sections majburiy", 
+      success: false 
+    });
   }
 
-  tasksModel.getReadingDataByMonth(monthId, (err, data) => {
+  saveListeningTest(monthId, testData, (err, result) => {
     if (err) {
-      console.error('Error getting tasks:', err);
-      return res.status(500).json({
-        error: 'Tasklarni olishda xatolik yuz berdi',
-        details: err.message,
+      return res.status(500).json({ 
+        message: "Listening test saqlashda xatolik", 
+        error: err.message,
+        success: false 
       });
     }
 
-    if (!data || !data.sections || data.sections.length === 0) {
-      return res.status(404).json({ message: 'Ushbu oy uchun tasklar topilmadi' });
+    res.status(201).json({ 
+      message: "Listening test muvaffaqiyatli saqlandi", 
+      monthId: monthId,
+      success: true
+    });
+  });
+};
+
+// Month ID bo'yicha listening test olish
+const getListeningTest = (req, res) => {
+  const monthId = parseInt(req.params.monthId || req.query.monthId);
+  
+  if (!monthId) {
+    return res.status(400).json({ 
+      message: "monthId kerak", 
+      success: false 
+    });
+  }
+
+  getListeningTestByMonth(monthId, (err, testData) => {
+    if (err) {
+      return res.status(500).json({ 
+        message: "Listening test olishda xatolik", 
+        error: err.message,
+        success: false 
+      });
     }
 
-    res.status(200).json(data);
+    if (!testData) {
+      return res.status(404).json({ 
+        message: "Test topilmadi", 
+        success: false 
+      });
+    }
+
+    res.status(200).json({ 
+      success: true,
+      data: testData
+    });
   });
 };
 
 module.exports = {
-  addTask,
-  getTasksByMonth,
+  createOrUpdateListeningTest,
+  getListeningTest
 };
