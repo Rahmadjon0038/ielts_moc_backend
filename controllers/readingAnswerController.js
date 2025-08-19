@@ -5,7 +5,6 @@ const submitReadingAnswers = async (req, res) => {
   const { userId, monthId, questions } = req.body;
   console.log("saveReadingAnswers:", saveReadingAnswers);
 
-
   if (!userId || !monthId || !Array.isArray(questions)) {
     return res.status(400).json({ message: 'The information is incomplete.' });
   }

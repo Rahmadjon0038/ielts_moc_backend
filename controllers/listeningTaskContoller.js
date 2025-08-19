@@ -1,13 +1,13 @@
 const { saveListeningTest, getListeningTestByMonth } = require("../models/listeningTaskModel");
 
-// Listening test yaratish yoki yangilash
+// Create or update listening test
 const createOrUpdateListeningTest = (req, res) => {
   const testData = req.body;
   const monthId = parseInt(testData.monthId);
 
   if (!monthId || !testData.sections) {
     return res.status(400).json({ 
-      message: "monthId va sections majburiy", 
+      message: "monthId and sections are required", 
       success: false 
     });
   }
@@ -15,27 +15,27 @@ const createOrUpdateListeningTest = (req, res) => {
   saveListeningTest(monthId, testData, (err, result) => {
     if (err) {
       return res.status(500).json({ 
-        message: "Listening test saqlashda xatolik", 
+        message: "Error while saving listening test", 
         error: err.message,
         success: false 
       });
     }
 
     res.status(201).json({ 
-      message: "Listening test muvaffaqiyatli saqlandi", 
+      message: "Listening test saved successfully", 
       monthId: monthId,
       success: true
     });
   });
 };
 
-// Month ID bo'yicha listening test olish
+// Get listening test by month ID
 const getListeningTest = (req, res) => {
   const monthId = parseInt(req.params.monthId || req.query.monthId);
   
   if (!monthId) {
     return res.status(400).json({ 
-      message: "monthId kerak", 
+      message: "monthId is required", 
       success: false 
     });
   }
@@ -43,7 +43,7 @@ const getListeningTest = (req, res) => {
   getListeningTestByMonth(monthId, (err, testData) => {
     if (err) {
       return res.status(500).json({ 
-        message: "Listening test olishda xatolik", 
+        message: "Error while fetching listening test", 
         error: err.message,
         success: false 
       });
@@ -51,7 +51,7 @@ const getListeningTest = (req, res) => {
 
     if (!testData) {
       return res.status(404).json({ 
-        message: "Test topilmadi", 
+        message: "Test not found", 
         success: false 
       });
     }
