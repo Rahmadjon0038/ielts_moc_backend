@@ -99,7 +99,8 @@ const setUserRaiting = (req, res) => {
   const { montId, userid } = req.params;
   const { section, score, comment } = req.body;
 
-  if (!section || !score) {
+
+  if (!section || score === undefined || score === null) {
     return res.status(400).json({ msg: "The score and section must be filled out." });
   }
 
