@@ -1,87 +1,86 @@
-const db = require('../config/db');
+const db = require('../config/db'); // pg pool ni import qilish
 
-// Listening jadvalini yaratish
+// Listening jadvalini yaratish (Model funksiyasi emas, shunchaki chaqiriladi)
 const createListeningTable = () => {
   const query = `
     CREATE TABLE IF NOT EXISTS listening_tests (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      month_id INT NOT NULL,
-      test_data JSON NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      UNIQUE KEY unique_month_id (month_id)
-    ) ENGINE=InnoDB;
+      id SERIAL PRIMARY KEY,
+      month_id INT NOT NULL UNIQUE,
+      test_data JSONB NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
   `;
-  db.query(query, (err) => {
-    if (err) console.error("Listening jadval yaratishda xatolik:", err);
-    else console.log("Listening jadval muvaffaqiyatli yaratildi");
-  });
+  db.query(query)
+    .then(() => console.log("Listening jadval muvaffaqiyatli yaratildi (Postgres)."))
+    .catch((err) => console.error("Listening jadval yaratishda xatolik:", err));
 };
 
-// Listening test saqlash/yangilash
-const saveListeningTest = (monthId, testData, callback) => {
-  db.query(
-    'SELECT id FROM listening_tests WHERE month_id = ?',
-    [monthId],
-    (err, results) => {
-      if (err) return callback(err);
+// Listening test saqlash/yangilash (To'liq Promise/async ga o'tkazildi)
+// ✅ callback argumenti olib tashlandi
+const saveListeningTest = async (monthId, testData) => {
+  // ⚠️ Izoh: Bu yerda MySQL'dagi ON DUPLICATE KEY UPDATE o'rniga 
+  // PostgreSQLning INSERT ... ON CONFLICT DO UPDATE sintaksisini ishlatamiz,
+  // bu SELECT/UPDATE/INSERT ketma-ketligidan ko'ra samaraliroq.
+  
+  const query = `
+    INSERT INTO listening_tests (month_id, test_data)
+    VALUES ($1, $2)
+    ON CONFLICT (month_id) DO UPDATE
+    SET 
+      test_data = EXCLUDED.test_data,
+      updated_at = now()
+    RETURNING id;
+  `;
 
-      if (results.length > 0) {
-        db.query(
-          'UPDATE listening_tests SET test_data = ?, updated_at = CURRENT_TIMESTAMP WHERE month_id = ?',
-          [JSON.stringify(testData), monthId],
-          callback
-        );
-      } else {
-        db.query(
-          'INSERT INTO listening_tests (month_id, test_data) VALUES (?, ?)',
-          [monthId, JSON.stringify(testData)],
-          callback
-        );
-      }
-    }
-  );
+  try {
+    const result = await db.query(query, [monthId, testData]); // testData to'g'ridan-to'g'ri JSONB sifatida uzatiladi
+    return result.rows[0].id; // Kiritilgan yoki yangilangan ID ni qaytaramiz
+  } catch (err) {
+    throw err;
+  }
 };
 
-// Month ID bo'yicha listening test olish
-const getListeningTestByMonth = (monthId, callback) => {
-  db.query(
-    'SELECT id, month_id, test_data, created_at, updated_at FROM listening_tests WHERE month_id = ?',
-    [monthId],
-    (err, results) => {
-      if (err) return callback(err);
-      
-      if (results.length === 0) {
-        return callback(null, null);
-      }
-
-      const result = results[0];
-      try {
-        result.test_data = JSON.parse(result.test_data);
-        callback(null, result);
-      } catch (parseErr) {
-        callback(parseErr);
-      }
-    }
-  );
+// Month ID bo'yicha listening test olish (To'liq Promise/async ga o'tkazildi)
+// ✅ callback argumenti olib tashlandi
+const getListeningTestByMonth = async (monthId) => {
+  const query = 'SELECT id, month_id, test_data, created_at, updated_at FROM listening_tests WHERE month_id = $1';
+  
+  try {
+    const result = await db.query(query, [monthId]);
+    
+    // Yagona qatorni yoki null qaytaramiz
+    return result.rows[0] || null;
+  } catch (err) {
+    throw err;
+  }
 };
 
-// Barcha listening testlarni olish
-const getAllListeningTests = (callback) => {
-  db.query(
-    'SELECT id, month_id, created_at, updated_at FROM listening_tests ORDER BY month_id DESC',
-    [],
-    callback
-  );
+// Barcha listening testlarni olish (To'liq Promise/async ga o'tkazildi)
+// ✅ callback argumenti olib tashlandi
+const getAllListeningTests = async () => {
+  const query = 'SELECT id, month_id, created_at, updated_at FROM listening_tests ORDER BY month_id DESC';
+  
+  try {
+    const result = await db.query(query);
+    // Barcha qatorlarni massiv sifatida qaytaramiz
+    return result.rows; 
+  } catch (err) {
+    throw err;
+  }
 };
 
-// Listening test o'chirish
-const deleteListeningTest = (monthId, callback) => {
-  db.query(
-    'DELETE FROM listening_tests WHERE month_id = ?',
-    [monthId],
-    callback
-  );
+// Listening test o'chirish (To'liq Promise/async ga o'tkazildi)
+// ✅ callback argumenti olib tashlandi
+const deleteListeningTest = async (monthId) => {
+  const query = 'DELETE FROM listening_tests WHERE month_id = $1';
+  
+  try {
+    const result = await db.query(query, [monthId]);
+    return result.rowCount; // O'chirilgan qatorlar sonini qaytaramiz
+  } catch (err) {
+    throw err;
+  }
 };
 
 module.exports = {

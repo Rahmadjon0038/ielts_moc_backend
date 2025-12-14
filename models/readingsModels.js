@@ -1,310 +1,266 @@
-const db = require('../config/db');
+const db = require('../config/db'); // pg pool ni import qilish
 
-// Jadval yaratish
-const createReadingTables = () => {
+// 1. Jadvallarni yaratish (CREATE TYPE xatosini ishonchli tekshiruv bilan tuzatish)
+const createReadingTables = async () => {
+  // 1️⃣ ENUM turi mavjudligini tekshirish
+  const checkTypeQuery = `
+    SELECT 1 FROM pg_type WHERE typname = 'question_type'
+  `;
+  
+  try {
+    const typeExistsResult = await db.query(checkTypeQuery);
+    
+    if (typeExistsResult.rows.length === 0) {
+      // 2️⃣ Agar tur mavjud bo'lmasa, uni yaratamiz
+      const createTypeQuery = `
+        CREATE TYPE question_type AS ENUM ('radio', 'select', 'text-multi', 'table', 'checkbox');
+      `;
+      await db.query(createTypeQuery);
+      console.log(`✅ 1-type 'question_type' yaratildi.`);
+    } else {
+      console.log(`✅ 1-type 'question_type' allaqachon mavjud.`);
+    }
+
+  } catch (err) {
+    // Agar yuqoridagi 'SELECT'da ham xato kelsa (juda kam hollarda)
+    console.error(`❌ ENUM turini boshqarishda xatolik:`, err.message);
+  }
+
+  // Qolgan jadvallar (CREATE TABLE IF NOT EXISTS mantiqi qoladi)
   const queries = [
+    // 2. reading_sections
     `CREATE TABLE IF NOT EXISTS reading_sections (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       monthId INT NOT NULL,
       part VARCHAR(50),
       intro TEXT,
       textTitle VARCHAR(255),
       text TEXT,
-      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
+      createdAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );`,
+    // 3. questions_groups
     `CREATE TABLE IF NOT EXISTS questions_groups (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       reading_section_id INT NOT NULL,
       questionTitle VARCHAR(255),
       questionIntro TEXT,
       FOREIGN KEY (reading_section_id) REFERENCES reading_sections(id) ON DELETE CASCADE,
-      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
+      createdAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );`,
+    // 4. questions
     `CREATE TABLE IF NOT EXISTS questions (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       questions_group_id INT NOT NULL,
       number INT,
-      type ENUM('radio', 'select', 'text-multi', 'table', 'checkbox') NOT NULL,
-      question TEXT,
-      options JSON,
+      type question_type NOT NULL,
+      question JSONB, 
+      options JSONB,
       maxSelect INT DEFAULT 1,
-      answer TEXT DEFAULT NULL,
+      answer JSONB DEFAULT NULL,
       FOREIGN KEY (questions_group_id) REFERENCES questions_groups(id) ON DELETE CASCADE,
-      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
+      createdAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );`,
+    // 5. text_multi_answers
     `CREATE TABLE IF NOT EXISTS text_multi_answers (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       question_id INT NOT NULL,
       number INT NOT NULL,
       answer TEXT DEFAULT '',
       FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
-      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`
+      createdAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );`
   ];
 
-  queries.forEach((query, i) => {
-    db.query(query, (err) => {
-      if (err) console.error(`❌ ${i + 1}-jadvalda xatolik:`, err.sqlMessage);
-      else console.log(`✅ ${i + 1}-jadval yaratildi.`);
-    });
-  });
+  // Tranzaksiyasiz har birini ketma-ket ishga tushiramiz
+  for (let i = 0; i < queries.length; i++) {
+    try {
+      await db.query(queries[i]);
+      console.log(`✅ ${i + 2}-jadval yaratildi.`);
+    } catch (err) {
+      if (err.code !== '42P07') { // 42P07: Table allaqachon mavjud
+        console.error(`❌ ${i + 2}-jadvalda xatolik:`, err.message);
+      }
+    }
+  }
 };
 
-const createReadingSection = (data, callback) => {
+
+// 2. Reading Section yaratish (JSON.stringify tuzatishlari bilan)
+const createReadingSection = async (data) => {
   const { monthId, sections = [] } = data;
+  
+  const client = await db.connect();
 
-  db.getConnection((err, connection) => {
-    if (err) return callback(err);
+  try {
+    await client.query('BEGIN'); // Tranzaksiyani boshlash
 
-    connection.beginTransaction(err => {
-      if (err) {
-        connection.release();
-        return callback(err);
-      }
+    // Eski ma'lumotlarni o'chirish (CASCADE tufayli avtomatik o'chadi, faqat asosiy sections kifoya)
+    const deleteSections = `DELETE FROM reading_sections WHERE monthId = $1;`;
+    await client.query(deleteSections, [monthId]);
+    
+    // 2️⃣ Yangi ma'lumotlarni kiritish (Looplar yordamida)
+    for (const section of sections) {
+      const { part, intro, textTitle, text, question: groups = [] } = section;
 
-      // 1️⃣ DELETE: questions
-      const deleteQuestions = `
-        DELETE qma FROM questions qma
-        JOIN questions_groups qg ON qma.questions_group_id = qg.id
-        JOIN reading_sections rs ON qg.reading_section_id = rs.id
-        WHERE rs.monthId = ?;
+      // 2.1 Section INSERT
+      const sectionQuery = `
+        INSERT INTO reading_sections (monthId, part, intro, textTitle, text)
+        VALUES ($1, $2, $3, $4, $5) RETURNING id
       `;
+      const sectionResult = await client.query(sectionQuery, [monthId, part, intro, textTitle, text]);
+      const sectionId = sectionResult.rows[0].id;
+      
+      for (const group of groups) {
+        const { questionTitle, questionIntro, questionsTask = [] } = group;
 
-      connection.query(deleteQuestions, [monthId], (err) => {
-        if (err) return rollbackWithError(err);
-
-        // 2️⃣ DELETE: questions_groups
-        const deleteGroups = `
-          DELETE qg FROM questions_groups qg
-          JOIN reading_sections rs ON qg.reading_section_id = rs.id
-          WHERE rs.monthId = ?;
+        // 2.2 Group INSERT
+        const groupQuery = `
+          INSERT INTO questions_groups (reading_section_id, questionTitle, questionIntro)
+          VALUES ($1, $2, $3) RETURNING id
         `;
+        const groupResult = await client.query(groupQuery, [sectionId, questionTitle, questionIntro]);
+        const groupId = groupResult.rows[0].id;
 
-        connection.query(deleteGroups, [monthId], (err) => {
-          if (err) return rollbackWithError(err);
-
-          // 3️⃣ DELETE: reading_sections
-          const deleteSections = `
-            DELETE FROM reading_sections WHERE monthId = ?;
+        for (const q of questionsTask) {
+          
+          // ✅ TUZATISH 1: JSONB ustunlariga ma'lumot yuborishdan oldin JSON.stringify() ishlatish
+          const optionsString = q.options ? JSON.stringify(q.options) : null;
+          const answerString = q.answer ? JSON.stringify(q.answer) : null;
+          
+          let questionData = null;
+          if (q.type === 'table' && q.table) {
+             questionData = JSON.stringify(q.table); 
+          } else if (q.question) {
+             questionData = JSON.stringify(q.question); 
+          }
+          
+          // 2.3 Question INSERT
+          const questionQuery = `
+            INSERT INTO questions (questions_group_id, number, type, question, options, maxSelect, answer)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
           `;
 
-          connection.query(deleteSections, [monthId], (err) => {
-            if (err) return rollbackWithError(err);
+          const values = [
+            groupId,
+            q.number || null,
+            q.type,
+            questionData, // ✅ JSON String
+            optionsString, // ✅ JSON String
+            q.maxSelect || 1,
+            answerString // ✅ JSON String
+          ];
+          
+          const questionResult = await client.query(questionQuery, values);
+          const questionId = questionResult.rows[0].id;
 
-            // 4️⃣ INSERT boshlaymiz
-            insertSection(0);
-          });
-        });
-      });
-
-      // INSERT bo‘limlari
-      const insertSection = (index) => {
-        if (index >= sections.length) return commitSuccess();
-
-        const { part, intro, textTitle, text, question = [] } = sections[index];
-
-        const sectionQuery = `
-          INSERT INTO reading_sections (monthId, part, intro, textTitle, text)
-          VALUES (?, ?, ?, ?, ?)
-        `;
-
-        connection.query(sectionQuery, [monthId, part, intro, textTitle, text], (err, sectionResult) => {
-          if (err) return rollbackWithError(err);
-
-          const sectionId = sectionResult.insertId;
-          const groups = question;
-
-          const insertGroup = (groupIndex) => {
-            if (groupIndex >= groups.length) return insertSection(index + 1);
-
-            const { questionTitle, questionIntro, questionsTask = [] } = groups[groupIndex];
-
-            const groupQuery = `
-              INSERT INTO questions_groups (reading_section_id, questionTitle, questionIntro)
-              VALUES (?, ?, ?)
-            `;
-
-            connection.query(groupQuery, [sectionId, questionTitle, questionIntro], (err, groupResult) => {
-              if (err) return rollbackWithError(err);
-
-              const groupId = groupResult.insertId;
-
-              const insertQuestion = (qIndex) => {
-                if (qIndex >= questionsTask.length) return insertGroup(groupIndex + 1);
-
-                const q = questionsTask[qIndex];
-                const options = q.options ? JSON.stringify(q.options) : null;
-                const questionText = q.type === 'table' ? JSON.stringify(q.table) : q.question;
-                const questionData = [
-                  groupId,
-                  q.number || null,
-                  q.type,
-                  questionText,
-                  options,
-                  q.maxSelect || 1,
-                  Array.isArray(q.answer) ? JSON.stringify(q.answer) : q.answer || null
-                ];
-
-                const questionQuery = `
-                  INSERT INTO questions (questions_group_id, number, type, question, options, maxSelect, answer)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)
-                `;
-
-                connection.query(questionQuery, questionData, (err, questionResult) => {
-                  if (err) return rollbackWithError(err);
-
-                  const questionId = questionResult.insertId;
-
-                  if (['text-multi', 'table'].includes(q.type) && Array.isArray(q.numbers)) {
-                    const answers = [];
-
-                    if (q.type === 'table') {
-                      const tableRows = q.table?.[0]?.rows || [];
-                      tableRows.forEach(row => {
-                        answers.push([questionId, row.number, row.question]);
-                      });
-                    } else {
-                      q.numbers.forEach((num, idx) => {
-                        // text-multi uchun answer massiv bo'lishi mumkin
-                        const ans = Array.isArray(q.answer) ? (q.answer[idx] || "") : "";
-                        answers.push([questionId, num, ans]);
-                      });
-                    }
-
-                    const answerQuery = `
-                      INSERT INTO text_multi_answers (question_id, number, answer)
-                      VALUES ?
-                    `;
-
-                    connection.query(answerQuery, [answers], (err) => {
-                      if (err) return rollbackWithError(err);
-                      insertQuestion(qIndex + 1);
-                    });
-                  } else {
-                    insertQuestion(qIndex + 1);
-                  }
-                });
-              };
-
-              insertQuestion(0);
+          // 2.4 Text Multi Answers INSERT (Agar kerak bo'lsa)
+          if (['text-multi', 'table'].includes(q.type) && Array.isArray(q.numbers)) {
+            const answersToInsert = [];
+            
+            // ✅ TUZATISH 2: Table va text-multi mantiqini soddalashtirish
+            let numbersArray = q.numbers;
+            if (q.type === 'table' && q.table?.rows) {
+                numbersArray = q.table.rows.map(row => row.number).filter(n => n !== undefined);
+            }
+            
+            numbersArray.forEach(num => {
+                answersToInsert.push(questionId, num, ''); 
             });
-          };
+            
+            if (answersToInsert.length > 0) {
+                 // Dinamik placeholderlarni yaratish
+                 const placeholders = [];
+                 for (let i = 0; i < answersToInsert.length / 3; i++) {
+                     const base = i * 3;
+                     placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3})`);
+                 }
 
-          insertGroup(0);
-        });
-      };
+                const answerQuery = `
+                  INSERT INTO text_multi_answers (question_id, number, answer)
+                  VALUES ${placeholders.join(', ')}
+                `;
+                
+                await client.query(answerQuery, answersToInsert);
+            }
+          }
+        } // End questionsTask loop
+      } // End groups loop
+    } // End sections loop
+    
+    await client.query('COMMIT'); // Tranzaksiyani yakunlash
+    return { message: '✅ Barcha sections yaratildi (eski maʼlumotlar yangilandi)' };
 
-      function rollbackWithError(err) {
-        connection.rollback(() => {
-          connection.release();
-          callback(err);
-        });
-      }
-
-      function commitSuccess() {
-        connection.commit((err) => {
-          if (err) return rollbackWithError(err);
-          connection.release();
-          callback(null, { message: '✅ Barcha sections yaratildi (eski maʼlumotlar yangilandi)' });
-        });
-      }
-    });
-  });
+  } catch (err) {
+    await client.query('ROLLBACK'); // Xatolik bo'lsa, qaytarish
+    throw err; // Xatolikni yuqoriga uzatish
+  } finally {
+    client.release(); // Client ni poolga qaytarish
+  }
 };
 
 
-// Readingni monthId bo‘yicha olish
-const getReadingByMonthId = ({ monthId }, callback) => {
-  db.query(`SELECT * FROM reading_sections WHERE monthId = ?`, [monthId], (err, sections) => {
-    if (err) return callback(err);
-    if (!sections.length) return callback(null, []);
+// 3. Readingni monthId bo‘yicha olish (getReadingByMonthId)
+const getReadingByMonthId = async ({ monthId }) => {
+  try {
+    // 1. Reading Sections
+    const sectionResult = await db.query(`SELECT * FROM reading_sections WHERE monthId = $1`, [monthId]);
+    const sections = sectionResult.rows;
+    if (!sections.length) return [];
 
-    const result = [];
-    let sectionCount = 0;
+    const finalResult = [];
 
-    sections.forEach((section) => {
-      db.query(`SELECT * FROM questions_groups WHERE reading_section_id = ?`, [section.id], (err, groups) => {
-        if (err) return callback(err);
+    // Asenkron Section Loop
+    for (const section of sections) {
+        // 2. Questions Groups
+        const groupResult = await db.query(`SELECT * FROM questions_groups WHERE reading_section_id = $1`, [section.id]);
+        const groups = groupResult.rows;
+        section.question = groups;
 
         if (!groups.length) {
-          section.question = [];
-          result.push(section);
-          finalizeSection();
-          return;
+          finalResult.push(section);
+          continue;
         }
 
-        let groupCount = 0;
-        groups.forEach((group) => {
-          db.query(`SELECT * FROM questions WHERE questions_group_id = ?`, [group.id], (err, questions) => {
-            if (err) return callback(err);
+        // Asenkron Group Loop
+        for (const group of groups) {
+            // 3. Questions
+            const questionsResult = await db.query(`SELECT * FROM questions WHERE questions_group_id = $1`, [group.id]);
+            const questions = questionsResult.rows;
 
-            if (!questions.length) {
-              group.questionsTask = [];
-              finalizeGroup();
-              return;
-            }
+            // Asenkron Question Loop
+            const finalQuestions = await Promise.all(questions.map(async question => {
+                
+                question.options = question.options || [];
 
-            let questionCount = 0;
-            const finalQuestions = [];
-
-            questions.forEach((question) => {
-              question.options = question.options ? JSON.parse(question.options) : [];
-
-              if (question.type === 'table') {
-                try {
-                  question.table = JSON.parse(question.question || "[]");
-                } catch {
-                  question.table = [];
+                if (question.type === 'table') {
+                   question.table = question.question || [];
+                   question.question = null; 
+                } else {
+                    question.question = question.question || null; 
                 }
-                question.question = null;
-              }
-
-              // answer ustuni har doim qaytariladi
-              // text-multi va table uchun answers massivdan olinadi
-              if (['text-multi', 'table'].includes(question.type)) {
-                db.query(`SELECT * FROM text_multi_answers WHERE question_id = ?`, [question.id], (err, answers) => {
-                  if (err) return callback(err);
-                  question.answers = answers || [];
-                  question.numbers = answers.map(ans => ans.number);
-                  finalQuestions.push(question);
-                  checkQuestionDone();
-                });
-              } else {
-                question.answers = [];
-                question.numbers = question.number ? [question.number] : [];
-                finalQuestions.push(question);
-                checkQuestionDone();
-              }
-
-              function checkQuestionDone() {
-                questionCount++;
-                if (questionCount === questions.length) {
-                  group.questionsTask = finalQuestions;
-                  finalizeGroup();
+                
+                if (['text-multi', 'table'].includes(question.type)) {
+                  // 4. Text Multi Answers
+                  const answersResult = await db.query(`SELECT * FROM text_multi_answers WHERE question_id = $1 ORDER BY number ASC`, [question.id]);
+                  question.answers = answersResult.rows || [];
+                  question.numbers = question.answers.map(ans => ans.number);
+                } else {
+                  question.answers = [];
+                  question.numbers = question.number ? [question.number] : [];
                 }
-              }
-            });
+                return question;
+            })); // End Promise.all (questions.map)
 
-            function finalizeGroup() {
-              groupCount++;
-              if (groupCount === groups.length) {
-                section.question = groups;
-                result.push(section);
-                finalizeSection();
-              }
-            }
-          });
-        });
-      });
+            group.questionsTask = finalQuestions;
+        } // End Group Loop
 
-      function finalizeSection() {
-        sectionCount++;
-        if (sectionCount === sections.length) {
-          callback(null, result);
-        }
-      }
-    });
-  });
+        finalResult.push(section);
+    } // End Section Loop
+
+    return finalResult;
+  } catch (err) {
+    throw err;
+  }
 };
 
 module.exports = {

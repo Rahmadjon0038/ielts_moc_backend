@@ -1,7 +1,7 @@
 const { getReadingByMonthId, createReadingSection } = require('../models/readingsModels');
 const Joi = require('joi');
 
-// JSON validatsiya sxemasi
+// JSON validatsiya sxemasi (o'zgartirilmaydi, chunki bu Joi sxemasi)
 const readingSchema = Joi.object({
   monthId: Joi.number().required(),
   sections: Joi.array().items(
@@ -70,38 +70,53 @@ const readingSchema = Joi.object({
   )
 });
 
-// 📥 getQuestionReading — monthId orqali savollarni olish
-const getQuestionReading = (req, res) => {
-  const { monthId } = req.params;
+// 📥 getQuestionReading — monthId orqali savollarni olish (Async/await ga o'tkazildi)
+const getQuestionReading = async (req, res) => {
+  // monthId ni to'g'ri intga o'tkazish
+  const monthId = parseInt(req.params.monthId);
 
-  getReadingByMonthId({ monthId: parseInt(monthId) }, (err, result) => {
-    if (err) {
-      console.error('Error fetching questions:', err);
-      return res.status(500).json({ message: 'Server error occurred' });
-    }
-    if (!result.length) {
+  // Validatsiya
+  if (isNaN(monthId)) {
+    return res.status(400).json({ message: 'Invalid Month ID provided.' });
+  }
+
+  try {
+    // Model funksiyasi endi Promise qaytaradi
+    const result = await getReadingByMonthId({ monthId });
+    
+    // Natija massivini tekshirish
+    if (!result || result.length === 0) {
       return res.status(404).json({ message: 'No test found for this month' });
     }
+    
+    // Natijani qaytarish
     res.json(result);
-  });
+  } catch (err) {
+    console.error('Error fetching questions (Postgres):', err.message);
+    return res.status(500).json({ message: 'Server error occurred', details: err.message });
+  }
 };
 
-// 📤 addQuestionReading — yangi reading test qo‘shish yoki yangilash
-const addQuestionReading = (req, res) => {
+// 📤 addQuestionReading — yangi reading test qo‘shish yoki yangilash (Async/await ga o'tkazildi)
+const addQuestionReading = async (req, res) => {
+  // 1. Validatsiya
   const { error, value } = readingSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
   }
 
   const { monthId, sections } = value;
-
-  createReadingSection({ monthId: parseInt(monthId), sections }, (err, result) => {
-    if (err) {
-      console.error('Error adding/updating test:', err);
-      return res.status(500).json({ message: 'Error adding/updating test' });
-    }
-    res.status(201).json({ message: 'Reading test successfully updated', result });
-  });
+  
+  try {
+    // 2. Model funksiyasini chaqirish (Promise asosida)
+    const result = await createReadingSection({ monthId: parseInt(monthId), sections });
+    
+    // 3. Muvaffaqiyatli javob
+    res.status(201).json({ message: 'Reading test successfully updated (Postgres)', result });
+  } catch (err) {
+    console.error('Error adding/updating test (Postgres):', err.message);
+    return res.status(500).json({ message: 'Error adding/updating test', details: err.message });
+  }
 };
 
 module.exports = { getQuestionReading, addQuestionReading };

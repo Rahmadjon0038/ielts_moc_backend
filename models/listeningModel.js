@@ -1,65 +1,82 @@
-const db = require('../config/db');
+const db = require('../config/db'); // pg pool ni import qilish
 
-// Jadvalni yaratish (1 marta ishga tushuriladi)
+// Jadvalni yaratish (o'zgarishsiz, hozircha mavjud jadvalga teginmaymiz)
 const createListeningAnswersTable = () => {
   const query = `
     CREATE TABLE IF NOT EXISTS listening_answers (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  userId INT,
-  monthId INT,
-  questionNumber INT,
-  questionText TEXT,
-  type VARCHAR(50), -- 👈 BU joy yangi
-  userAnswers JSON, -- 👈 BU ham yangi
-  options JSON      -- 👈 BU ham yangi
-);
-
+        id SERIAL PRIMARY KEY,
+        userId INT,
+        monthId INT,
+        questionNumber INT,
+        questionText TEXT,
+        type VARCHAR(50), 
+        userAnswers JSONB,
+        options JSONB
+    );
   `;
-  db.query(query, (err) => {
-    if (err) {
+  db.query(query)
+    .then(() => {
+      console.log("✅ Listening javoblari jadvali tayyor (Postgres).");
+    })
+    .catch((err) => {
       console.error("❌ Listening javoblari jadvalida xatolik:", err);
-    } else {
-      console.log("✅ Listening javoblari jadvali tayyor.");
-    }
-  });
+    });
 };
 
-// Javoblarni qo‘shish
-const insertListeningAnswers = (data, callback) => {
-  const values = [];
+// Javoblarni qo‘shish (Tuzatilgan)
+const insertListeningAnswers = async (data) => {
+  if (!data || data.length === 0) {
+    throw new Error("Javoblar ma'lumoti topilmadi."); 
+  }
 
-  data.answers.forEach(answer => {
-    const answersString = JSON.stringify(answer.userAnswers); // array ni stringga aylantiramiz
-    values.push([
-      data.userId,
-      data.monthId,
+  const placeholders = data.map((_, index) => {
+    const base = index * 7;
+    return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`;
+  }).join(', ');
+
+  let flatValues = [];
+  data.forEach(answer => {
+    flatValues.push(
+      answer.userId,
+      answer.monthId,
       answer.questionNumber,
       answer.questionText,
       answer.type,
-      answersString
-    ]);
+      // JSONB uchun stringify: Controllerda o'chirildi, Modelda bo'lishi kerak.
+      JSON.stringify(answer.userAnswers || []), 
+      JSON.stringify(answer.options || []) 
+    );
   });
-
+  
   const query = `
-    INSERT INTO listening_answers (userId, monthId, questionNumber, questionText, answerType, userAnswer)
-    VALUES ?
+    INSERT INTO listening_answers (
+      -- ✅ TUZATISH: Ustun nomlarini kichik harflarga o'tkazdik (Postgres shunday saqlaydi)
+      userid, monthid, questionnumber, questiontext, type, useranswers, options
+    )
+    VALUES ${placeholders}
   `;
 
-  db.query(query, [values], (err, result) => {
-    if (err) return callback(err);
-    callback(null, result);
-  });
+  try {
+    const result = await db.query(query, flatValues); 
+    return result.rowCount; 
+  } catch (err) {
+    throw err; 
+  }
 };
 
-// Javoblarni olish (userId va monthId bo‘yicha)
-const getListeningAnswersByUser = (userId, monthId, callback) => {
+// Javoblarni olish (Tuzatilgan)
+const getListeningAnswersByUser = async (userId, monthId) => {
   const query = `
-    SELECT * FROM listening_answers WHERE userId = ? AND monthId = ?
+    SELECT * FROM listening_answers WHERE userid = $1 AND monthid = $2
   `;
-  db.query(query, [userId, monthId], (err, results) => {
-    if (err) return callback(err);
-    callback(null, results);
-  });
+  // ✅ TUZATISH: Ustun nomlari kichik harflarda
+  
+  try {
+    const result = await db.query(query, [userId, monthId]); 
+    return result.rows; 
+  } catch (err) {
+    throw err; 
+  }
 };
 
 module.exports = {

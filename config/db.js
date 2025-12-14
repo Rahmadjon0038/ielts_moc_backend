@@ -1,16 +1,26 @@
-const mysql = require("mysql2");
+const { Pool } = require('pg'); // pg kutubxonasidagi Pool obyekti
 
-const pool = mysql.createPool({
-  host: "localhost",
-  user: "rahmadjon",
-  // password: "1234",
-  password: "yangi_parol",
-  database: "ieltsMock",
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0,
+// PostgreSQL konfigiratsiyasi
+const pool = new Pool({
+  user: "user",        // Ma'lumotlar bazasi foydalanuvchisi
+  host: "localhost",         // Ma'lumotlar bazasi manzili
+  database: "ieltsmock",     // Ma'lumotlar bazasi nomi
+  password: "12345",   // Parol
+  port: 5432,                // PostgreSQL default porti (MariaDB/MySQL odatda 3306)
+  // Quyidagi sozlamalar MariaDB/MySQL'dagi 'connectionLimit'ga teng
+  max: 10,                   // Pool'dagi maksimal ulanishlar soni
+  idleTimeoutMillis: 30000,  // Ulanish pool'da uzoq vaqt foydalanilmasa, tugatish (30 sekund)
+  connectionTimeoutMillis: 2000, // Ulanishni olish uchun maksimal kutish (2 sekund)
 });
+
+// Ulanishni sinash (ixtiyoriy)
+pool.on('connect', () => {
+  console.log('PostgreSQL bazasi bilan muvaffaqiyatli ulandi.');
+});
+
+pool.on('error', (err) => {
+  console.error('PostgreSQL ulanish poolida kutilmagan xato:', err);
+});
+
 
 module.exports = pool;

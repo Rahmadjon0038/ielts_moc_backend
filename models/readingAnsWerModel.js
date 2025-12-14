@@ -1,86 +1,106 @@
-const db = require('../config/db');
+const db = require('../config/db'); // pg pool ni import qilish
 
-// 📦 Jadval yaratish
+// 📦 Jadval yaratish (Model funksiyasi emas, shunchaki chaqiriladi)
 const createReadingAnswersTable = () => {
   const query = `
     CREATE TABLE IF NOT EXISTS reading_answersAdmin (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       userId INT NOT NULL,
       monthId INT NOT NULL,
       part VARCHAR(50) NOT NULL,
       questionNumber INT NOT NULL,
       questionText TEXT NOT NULL,
       type VARCHAR(50),
-      options TEXT,
-      userAnswer TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+      options JSONB,
+      userAnswer JSONB,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
   `;
-  db.query(query, (err) => {
-    if (err) {
-      console.error(' reading_answersAdmin jadvali yaratishda xatolik:', err);
-    } else {
-      console.log(' reading_answersAdmin jadvali tayyor.');
-    }
-  });
+  db.query(query)
+    .then(() => {
+      console.log('✅ reading_answersAdmin jadvali tayyor (Postgres).');
+    })
+    .catch((err) => {
+      console.error('❌ reading_answersAdmin jadvali yaratishda xatolik:', err);
+    });
 };
-const saveReadingAnswers = (answers, callback) => {
-  if (typeof callback !== 'function') {
-    console.error(' Callback uzatilmagan yoki noto‘g‘ri turda');
-    return;
-  }
 
+// Javoblarni saqlash (To'liq Promise/async ga o'tkazildi)
+const saveReadingAnswers = async (answers) => {
   if (!Array.isArray(answers) || answers.length === 0) {
-    return callback(new Error(" Javoblar ro‘yxati bo‘sh yoki noto‘g‘ri formatda"));
+    throw new Error("Javoblar ro‘yxati bo‘sh yoki noto‘g‘ri formatda");
   }
 
-  const { userId, monthId } = answers[0]; // barchasi uchun bir xil
+  // ✅ userId va monthId ni so'rovlar uchun o'zgaruvchi sifatida olamiz
+  const { userId, monthId } = answers[0]; 
 
-  // 1. Avval eski javoblarni o‘chiramiz
+  // PostgreSQL INSERT VALUES sintaksisini yaratish
+  const placeholders = answers.map((_, index) => {
+      const base = index * 8; // Har bir qator 8 ta ustundan iborat
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
+  }).join(', ');
+
+  let flatValues = [];
+  answers.forEach(q => {
+      // ✅ TUZATISH: JSONB ustunlariga ma'lumot yuborishdan oldin JSON.stringify() ishlatamiz
+      const optionsString = q.options ? JSON.stringify(q.options) : null;
+      
+      // userAnswer ni ham JSON.stringify dan o'tkazamiz
+      // null bo'lsa, uni null sifatida qoldiramiz (Postgres uchun null)
+      const userAnswerString = q.userAnswer === null ? null : JSON.stringify(q.userAnswer);
+
+      flatValues.push(
+          q.userId,
+          q.monthId,
+          q.part,
+          q.questionNumber,
+          q.questionText,
+          q.type || null,
+          optionsString,      // ✅ Endi JSON string
+          userAnswerString    // ✅ Endi JSON string
+      );
+  });
+
   const deleteSql = `
     DELETE FROM reading_answersAdmin
-    WHERE userId = ? AND monthId = ?
+    WHERE userId = $1 AND monthId = $2
   `;
 
-  db.query(deleteSql, [userId, monthId], (deleteErr) => {
-    if (deleteErr) return callback(deleteErr);
+  const insertSql = `
+    INSERT INTO reading_answersAdmin 
+    (userId, monthId, part, questionNumber, questionText, type, options, userAnswer)
+    VALUES ${placeholders}
+  `;
 
+  try {
+    // 1. Avval eski javoblarni o‘chiramiz
+    await db.query(deleteSql, [userId, monthId]);
+    
     // 2. So‘ng yangilarini qo‘shamiz
-    const values = answers.map(q => [
-      q.userId,
-      q.monthId,
-      q.part,
-      q.questionNumber,
-      q.questionText,
-      q.type || null,
-      JSON.stringify(q.options || []),
-      q.userAnswer === null ? null : JSON.stringify(q.userAnswer)
-    ]);
-
-    const insertSql = `
-      INSERT INTO reading_answersAdmin 
-      (userId, monthId, part, questionNumber, questionText, type, options, userAnswer)
-      VALUES ?
-    `;
-
-    db.query(insertSql, [values], (insertErr, result) => {
-      if (insertErr) return callback(insertErr);
-      callback(null, result);
-    });
-  });
+    const result = await db.query(insertSql, flatValues);
+    
+    return result.rowCount; // Kiritilgan qatorlar sonini qaytaramiz
+  } catch (err) {
+    // Xatolikni yuqoriga uzatamiz
+    throw err;
+  }
 };
 
 
-// 🔍 Ma’lum user va oy uchun javoblar olish
-const getReadingAnswersByUserAndMonth = ({ userId, monthId }, callback) => {
+// 🔍 Ma’lum user va oy uchun javoblar olish (To'liq Promise/async ga o'tkazildi)
+const getReadingAnswersByUserAndMonth = async ({ userId, monthId }) => {
   const query = `
     SELECT * FROM reading_answersAdmin
-    WHERE userId = ? AND monthId = ?
+    WHERE userId = $1 AND monthId = $2
   `;
-  db.query(query, [userId, monthId], (err, results) => {
-    if (err) return callback(err);
-    callback(null, results);
-  });
+  
+  try {
+    const result = await db.query(query, [userId, monthId]);
+    // Natijalar massivini qaytaramiz
+    return result.rows; 
+  } catch (err) {
+    throw err;
+  }
 };
 
 module.exports = {
