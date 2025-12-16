@@ -1,59 +1,55 @@
 const {
-  insertListeningAnswers, // Endi bu model funksiyasi bir nechta qatorni insert qiladi
+  insertListeningAnswers,
   getListeningAnswersByUser
 } = require('../models/listeningModel');
 
-const db = require('../config/db'); // pg pool ni import qilish
+const db = require('../config/db');
 
-// Javoblarni o‘chirish va yangidan saqlash (Transaction va Async/await ga o'tkazildi)
+// Javoblarni o‘chirish va yangidan saqlash
 const addListeningAnswer = async (req, res) => {
-  const { userId, monthId, answers } = req.body;
+  // ✅ TUZATISH: De-structuringda nomi kichik harfga o'tkazildi (userid, monthid)
+  const { userId: userid, monthId: monthid, answers } = req.body; 
 
-  if (!userId || !monthId || !answers || !Array.isArray(answers)) {
+  if (!userid || !monthid || !answers || !Array.isArray(answers)) {
     return res.status(400).json({ message: 'Invalid data format' });
   }
 
-  // PostgreSQL INSERT qilish uchun tayyorlash (JSON ma'lumotlarini to'g'ri formatlash)
+  // ✅ TUZATISH: Modelga yuboriladigan ma'lumotlarda ham ustun nomlari kichik harfda
   const values = answers.map((ans) => ({
-    userId: userId,
-    monthId: monthId,
+    userid: userid, // Kichik harf
+    monthid: monthid, // Kichik harf
     questionNumber: ans.questionNumber,
     questionText: ans.questionText,
     type: ans.type,
-    // JSON ma'lumotlarini SQLga to'g'ri uzatish uchun JSON.stringify shart (Agar modelda to'g'ridan-to'g'ri ishlatilsa)
     userAnswers: ans.userAnswers, 
     options: ans.options || []
   }));
 
   try {
-    // 1. Eski javoblarni o‘chiramiz (Model ishlatilishi shart emas, to'g'ridan-to'g'ri db.query)
-    const deleteQuery = `DELETE FROM listening_answers WHERE "userId" = $1 AND "monthId" = $2`;
-    await db.query(deleteQuery, [userId, monthId]);
+    // ✅ TUZATISH: DELETE so'rovida ustun nomlari kichik harflarga o'tkazildi
+    const deleteQuery = `DELETE FROM listening_answers WHERE monthid = $1 AND userid = $2`;
+    await db.query(deleteQuery, [monthid, userid]);
     
-    // 2. Yangi javoblarni saqlaymiz (Model funksiyasini chaqiramiz)
-    // Model funksiyasi bu yerda massivni qabul qilib, uni bir nechta INSERT so'roviga aylantirishi kerak.
-    // Yoki bitta so'rovda UNNEST yoki generate_series ishlatilishi kerak.
-    // Sodda bo'lishi uchun, model funksiyasi barcha insertni o'zi bajaradi deb faraz qilamiz.
-    const insertedCount = await insertListeningAnswers(values); // Model funksiyasi insert qilingan qator sonini qaytaradi deb faraz qilamiz
+    // Modelga to'g'ri formatdagi ma'lumot yuborilmoqda
+    const insertedCount = await insertListeningAnswers(values); 
 
     res.status(201).json({ message: 'Answers successfully updated (Postgres)', inserted: insertedCount });
   } catch (err) {
     console.error('Error in addListeningAnswer (Postgres):', err);
+    // Xatolik xabarini to'liq ko'rsatish uchun error.message ishlatildi
     return res.status(500).json({ message: 'Failed to save/update answers', error: err.message });
   }
 };
 
 
-// Javoblarni olish (Async/await ga o'tkazildi)
+// Javoblarni olish
 const getListeningAnswer = async (req, res) => {
-  const { userId, monthId } = req.params;
+  // ✅ TUZATISH: Parametrlarni olishda nomi kichik harfga o'tkazildi (userid, monthid)
+  const { userId: userid, monthId: monthid } = req.params;
 
   try {
-    // Model funksiyasi Promise orqali natijalar massivini qaytaradi
-    const answers = await getListeningAnswersByUser(userId, monthId);
-
-    // PostgreSQLda JSON/JSONB ustunlari Node.js tomonidan avtomatik ravishda obyektga/massivga Parse qilinadi.
-    // Shuning uchun bu yerda JSON.parse qilish shart emas.
+    // Model funksiyasini chaqirishda ham kichik harfli nomlar ishlatildi
+    const answers = await getListeningAnswersByUser(userid, monthid);
 
     res.json({ message: 'Answers fetched successfully (Postgres)', answers: answers });
   } catch (err) {

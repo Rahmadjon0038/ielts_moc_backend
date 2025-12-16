@@ -1,16 +1,16 @@
 const db = require('../config/db'); // pg pool ni import qilish
 
-// Jadvalni yaratish (o'zgarishsiz, hozircha mavjud jadvalga teginmaymiz)
+// ✅ TUZATISH: Jadvalni yaratish so'rovi to'liq kichik harfli ustun nomlariga o'tkazildi
 const createListeningAnswersTable = () => {
   const query = `
     CREATE TABLE IF NOT EXISTS listening_answers (
         id SERIAL PRIMARY KEY,
-        userId INT,
-        monthId INT,
-        questionNumber INT,
-        questionText TEXT,
+        userid INT,
+        monthid INT,
+        questionnumber INT,
+        questiontext TEXT,
         type VARCHAR(50), 
-        userAnswers JSONB,
+        useranswers JSONB,
         options JSONB
     );
   `;
@@ -23,10 +23,10 @@ const createListeningAnswersTable = () => {
     });
 };
 
-// Javoblarni qo‘shish (Tuzatilgan)
+// Javoblarni qo‘shish (Controllerdan to'g'ri ma'lumot kelishi kutiladi)
 const insertListeningAnswers = async (data) => {
   if (!data || data.length === 0) {
-    throw new Error("Javoblar ma'lumoti topilmadi."); 
+    return 0; 
   }
 
   const placeholders = data.map((_, index) => {
@@ -37,12 +37,11 @@ const insertListeningAnswers = async (data) => {
   let flatValues = [];
   data.forEach(answer => {
     flatValues.push(
-      answer.userId,
-      answer.monthId,
+      answer.userid, // ✅ Kichik harf
+      answer.monthid, // ✅ Kichik harf
       answer.questionNumber,
       answer.questionText,
       answer.type,
-      // JSONB uchun stringify: Controllerda o'chirildi, Modelda bo'lishi kerak.
       JSON.stringify(answer.userAnswers || []), 
       JSON.stringify(answer.options || []) 
     );
@@ -50,31 +49,33 @@ const insertListeningAnswers = async (data) => {
   
   const query = `
     INSERT INTO listening_answers (
-      -- ✅ TUZATISH: Ustun nomlarini kichik harflarga o'tkazdik (Postgres shunday saqlaydi)
       userid, monthid, questionnumber, questiontext, type, useranswers, options
     )
     VALUES ${placeholders}
+    RETURNING id
   `;
 
   try {
     const result = await db.query(query, flatValues); 
     return result.rowCount; 
   } catch (err) {
+    console.error("❌ Xatolik insertListeningAnswers:", err);
     throw err; 
   }
 };
 
-// Javoblarni olish (Tuzatilgan)
-const getListeningAnswersByUser = async (userId, monthId) => {
+// Javoblarni olish
+const getListeningAnswersByUser = async (userid, monthid) => {
   const query = `
     SELECT * FROM listening_answers WHERE userid = $1 AND monthid = $2
   `;
-  // ✅ TUZATISH: Ustun nomlari kichik harflarda
+  // ✅ Kichik harfli ustun nomlari
   
   try {
-    const result = await db.query(query, [userId, monthId]); 
+    const result = await db.query(query, [userid, monthid]); 
     return result.rows; 
   } catch (err) {
+    console.error("❌ Xatolik getListeningAnswersByUser:", err);
     throw err; 
   }
 };
