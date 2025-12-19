@@ -1,16 +1,15 @@
-const { Pool } = require("pg"); // pg kutubxonasidagi Pool obyekti
+const { Pool } = require("pg");
+require("dotenv").config();
 
-// PostgreSQL konfigiratsiyasi
 const pool = new Pool({
-  user: "rahmadjon", // Ma'lumotlar bazasi foydalanuvchisi
-  host: "0.0.0.0", // Ma'lumotlar bazasi manzili
-  database: "ieltsmock", // Ma'lumotlar bazasi nomi
-  password: "ieltsmock12345", // Parol
-  port: 4010, // PostgreSQL default porti (MariaDB/MySQL odatda 3306)
-  // Quyidagi sozlamalar MariaDB/MySQL'dagi 'connectionLimit'ga teng
-  max: 10, // Pool'dagi maksimal ulanishlar soni
-  idleTimeoutMillis: 30000, // Ulanish pool'da uzoq vaqt foydalanilmasa, tugatish (30 sekund)
-  connectionTimeoutMillis: 2000, // Ulanishni olish uchun maksimal kutish (2 sekund)
+  user: process.env.POSTGRES_USER || "rahmadjon",
+  host: process.env.POSTGRES_HOST || process.env.PGHOST || "0.0.0.0",
+  database: process.env.POSTGRES_DB || process.env.PGDATABASE || "ieltsmock",
+  password: process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || "ieltsmock12345",
+  port: Number(process.env.POSTGRES_PORT || process.env.PGPORT || 4010),
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 // Ulanishni sinash (ixtiyoriy)
