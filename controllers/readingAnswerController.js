@@ -1,17 +1,20 @@
-const { saveReadingAnswers, getReadingAnswersByUserAndMonth } = require("../models/readingAnsWerModel");
+const {
+  saveReadingAnswers,
+  getReadingAnswersByUserAndMonth,
+} = require("../models/readingAnsWerModel");
 
 //  Javoblarni qabul qilish va saqlash (Async/await ga o'tkazildi)
 const submitReadingAnswers = async (req, res) => {
   // Funksiyani async qildik
   const { userId, monthId, questions } = req.body;
-  
+
   // console.log("saveReadingAnswers:", saveReadingAnswers); // Endi bu model funksiyasi bo'ladi
 
   if (!userId || !monthId || !Array.isArray(questions)) {
-    return res.status(400).json({ message: 'The information is incomplete.' });
+    return res.status(400).json({ message: "The information is incomplete." });
   }
 
-  const formattedAnswers = questions.map(q => ({
+  const formattedAnswers = questions.map((q) => ({
     userId,
     monthId,
     part: q.part,
@@ -19,18 +22,20 @@ const submitReadingAnswers = async (req, res) => {
     questionText: q.questionText,
     type: q.type,
     options: q.options || [],
-    userAnswer: q.userAnswer
+    userAnswer: q.userAnswer,
   }));
 
   try {
     // ✅ Model funksiyasini await bilan chaqiramiz (callback o'rniga)
-    await saveReadingAnswers(formattedAnswers); 
+    await saveReadingAnswers(formattedAnswers);
 
-    return res.status(201).json({ message: 'Answers successfully saved (Postgres).' });
+    return res.status(201).json({ message: "Answers successfully saved ." });
   } catch (err) {
-    console.error('Error saving answers (Postgres):', err.message);
+    console.error("Error saving answers :", err.message);
     // Xatolikni qaytarish
-    return res.status(500).json({ message: 'Error saving answers', error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Error saving answers", error: err.message });
   }
 };
 
@@ -40,19 +45,21 @@ const getReadingAnswers = async (req, res) => {
   const { userId, monthId } = req.query;
 
   if (!userId || !monthId) {
-    return res.status(400).json({ message: 'Insufficient parameters.' });
+    return res.status(400).json({ message: "Insufficient parameters." });
   }
 
   try {
     // ✅ Model funksiyasini await bilan chaqiramiz (callback o'rniga)
     // Model Promise orqali natijalar massivini qaytaradi
-    const results = await getReadingAnswersByUserAndMonth({ userId, monthId }); 
+    const results = await getReadingAnswersByUserAndMonth({ userId, monthId });
 
     return res.status(200).json(results);
   } catch (err) {
-    console.error('Error fetching data (Postgres):', err.message);
+    console.error("Error fetching data :", err.message);
     // Xatolikni qaytarish
-    return res.status(500).json({ message: 'Error fetching data', error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Error fetching data", error: err.message });
   }
 };
 

@@ -1,4 +1,4 @@
-const db = require('../config/db'); // pg pool ni import qilish
+const db = require("../config/db"); // pg pool ni import qilish
 
 // ================== WRITING TASKS (ADMIN UCHUN) ===================
 
@@ -16,15 +16,21 @@ const createWritingTable = () => {
   `;
   db.query(query)
     .then(() => {
-      console.log('✅ writing_tasks jadvali tayyor (Postgres)');
+      console.log("✅ writing_tasks jadvali tayyor ");
     })
     .catch((err) => {
-      console.error('❌ Writing jadvalini yaratishda xatolik:', err.message);
+      console.error("❌ Writing jadvalini yaratishda xatolik:", err.message);
     });
 };
 
 // Writing qo‘shish yoki yangilash (To'liq Promise/async ga o'tkazildi)
-const upsertWritingTask = async (mock_id, task1, task2, task1Image, task2Image) => {
+const upsertWritingTask = async (
+  mock_id,
+  task1,
+  task2,
+  task1Image,
+  task2Image
+) => {
   const query = `
     INSERT INTO writing_tasks (mock_id, task1, task2, task1_image, task2_image)
     VALUES ($1, $2, $3, $4, $5)
@@ -35,7 +41,7 @@ const upsertWritingTask = async (mock_id, task1, task2, task1Image, task2Image) 
       task1_image = EXCLUDED.task1_image,
       task2_image = EXCLUDED.task2_image;
   `;
-  
+
   try {
     await db.query(query, [mock_id, task1, task2, task1Image, task2Image]);
     return true;
@@ -47,7 +53,7 @@ const upsertWritingTask = async (mock_id, task1, task2, task1Image, task2Image) 
 // Writingni olish (To'liq Promise/async ga o'tkazildi)
 const getWritingTask = async (mock_id) => {
   const query = `SELECT task1, task2, task1_image, task2_image FROM writing_tasks WHERE mock_id = $1`;
-  
+
   try {
     const result = await db.query(query, [mock_id]);
     return result.rows[0] || null;
@@ -74,10 +80,13 @@ const createWritingAnswersTable = () => {
   `;
   db.query(query)
     .then(() => {
-      console.log('✅ writing_answers jadvali tayyor (Postgres)');
+      console.log("✅ writing_answers jadvali tayyor ");
     })
     .catch((err) => {
-      console.error('❌ writing_answers jadvalini yaratishda xatolik:', err.message);
+      console.error(
+        "❌ writing_answers jadvalini yaratishda xatolik:",
+        err.message
+      );
     });
 };
 
@@ -93,9 +102,15 @@ const saveUserWritingAnswer = async (userId, monthId, section, answers) => {
       created_at = NOW()
     RETURNING id;
   `;
-  
+
   try {
-    const result = await db.query(query, [userId, monthId, section, answers.task1, answers.task2]);
+    const result = await db.query(query, [
+      userId,
+      monthId,
+      section,
+      answers.task1,
+      answers.task2,
+    ]);
     return result.rows[0].id;
   } catch (err) {
     throw err;
@@ -133,15 +148,21 @@ const createRaitingsTable = () => {
   `;
   db.query(query)
     .then(() => {
-      console.log('✅ raitings jadvali tayyor (Postgres)');
+      console.log("✅ raitings jadvali tayyor ");
     })
     .catch((err) => {
-      console.error('❌ Raitings jadvalini yaratishda xatolik:', err.message);
+      console.error("❌ Raitings jadvalini yaratishda xatolik:", err.message);
     });
 };
 
 // Bahoni saqlash yoki yangilash (To'liq Promise/async ga o'tkazildi)
-const upsertUserRaiting = async (user_id, month_id, section, score, comment) => {
+const upsertUserRaiting = async (
+  user_id,
+  month_id,
+  section,
+  score,
+  comment
+) => {
   const query = `
     INSERT INTO raitings (user_id, month_id, section, score, comment)
     VALUES ($1, $2, $3, $4, $5)
@@ -189,7 +210,7 @@ const getMonthStatistics = async (monthId) => {
     GROUP BY u.id, u.username
   `;
   // Izoh: GROUP BY 'u.id' va 'u.username' bo'lishi kerak, shunda u.username SELECT qilinishi mumkin.
-  
+
   try {
     const result = await db.query(query, [monthId]);
     return result.rows;
@@ -212,5 +233,5 @@ module.exports = {
   upsertUserRaiting,
   getUserRaitingmodel,
   // Stats
-  getMonthStatistics
+  getMonthStatistics,
 };

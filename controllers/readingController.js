@@ -1,5 +1,8 @@
-const { getReadingByMonthId, createReadingSection } = require('../models/readingsModels');
-const Joi = require('joi');
+const {
+  getReadingByMonthId,
+  createReadingSection,
+} = require("../models/readingsModels");
+const Joi = require("joi");
 
 // JSON validatsiya sxemasi (o'zgartirilmaydi, chunki bu Joi sxemasi)
 const readingSchema = Joi.object({
@@ -16,58 +19,58 @@ const readingSchema = Joi.object({
           questionIntro: Joi.string().required(),
           questionsTask: Joi.array().items(
             Joi.object({
-              type: Joi.string().valid('radio', 'select', 'checkbox', 'text-multi', 'table').required(),
+              type: Joi.string()
+                .valid("radio", "select", "checkbox", "text-multi", "table")
+                .required(),
 
               // `number` faqat radio/select/checkbox uchun kerak
-              number: Joi.when('type', {
-                is: Joi.valid('radio', 'select', 'checkbox'),
+              number: Joi.when("type", {
+                is: Joi.valid("radio", "select", "checkbox"),
                 then: Joi.number().required(),
-                otherwise: Joi.forbidden()
+                otherwise: Joi.forbidden(),
               }),
 
               // `numbers` faqat text-multi/table uchun kerak
-              numbers: Joi.when('type', {
-                is: Joi.valid('text-multi', 'table'),
+              numbers: Joi.when("type", {
+                is: Joi.valid("text-multi", "table"),
                 then: Joi.array().items(Joi.number()).required(),
-                otherwise: Joi.forbidden()
+                otherwise: Joi.forbidden(),
               }),
 
-              question: Joi.when('type', {
-                is: Joi.valid('radio', 'select', 'checkbox', 'text-multi'),
+              question: Joi.when("type", {
+                is: Joi.valid("radio", "select", "checkbox", "text-multi"),
                 then: Joi.string().required(),
-                otherwise: Joi.forbidden()
-              })
-              ,
-
+                otherwise: Joi.forbidden(),
+              }),
               // `options` faqat radio/select/checkbox uchun
-              options: Joi.when('type', {
-                is: Joi.valid('radio', 'select', 'checkbox'),
+              options: Joi.when("type", {
+                is: Joi.valid("radio", "select", "checkbox"),
                 then: Joi.array().items(Joi.string()).required(),
-                otherwise: Joi.forbidden()
+                otherwise: Joi.forbidden(),
               }),
 
               // `maxSelect` faqat checkbox uchun optional
-              maxSelect: Joi.when('type', {
-                is: 'checkbox',
+              maxSelect: Joi.when("type", {
+                is: "checkbox",
                 then: Joi.number().optional(),
-                otherwise: Joi.forbidden()
+                otherwise: Joi.forbidden(),
               }),
 
               // `table` faqat table tipida optional
-              table: Joi.when('type', {
-                is: 'table',
+              table: Joi.when("type", {
+                is: "table",
                 then: Joi.any().optional(),
-                otherwise: Joi.forbidden()
+                otherwise: Joi.forbidden(),
               }),
 
               // `answer` barcha turlar uchun optional (admin to'g'ri javob kiritadi)
               answer: Joi.any().optional(),
             })
-          )
+          ),
         })
-      )
+      ),
     })
-  )
+  ),
 });
 
 // 📥 getQuestionReading — monthId orqali savollarni olish (Async/await ga o'tkazildi)
@@ -77,23 +80,25 @@ const getQuestionReading = async (req, res) => {
 
   // Validatsiya
   if (isNaN(monthId)) {
-    return res.status(400).json({ message: 'Invalid Month ID provided.' });
+    return res.status(400).json({ message: "Invalid Month ID provided." });
   }
 
   try {
     // Model funksiyasi endi Promise qaytaradi
     const result = await getReadingByMonthId({ monthId });
-    
+
     // Natija massivini tekshirish
     if (!result || result.length === 0) {
-      return res.status(404).json({ message: 'No test found for this month' });
+      return res.status(404).json({ message: "No test found for this month" });
     }
-    
+
     // Natijani qaytarish
     res.json(result);
   } catch (err) {
-    console.error('Error fetching questions (Postgres):', err.message);
-    return res.status(500).json({ message: 'Server error occurred', details: err.message });
+    console.error("Error fetching questions :", err.message);
+    return res
+      .status(500)
+      .json({ message: "Server error occurred", details: err.message });
   }
 };
 
@@ -106,16 +111,23 @@ const addQuestionReading = async (req, res) => {
   }
 
   const { monthId, sections } = value;
-  
+
   try {
     // 2. Model funksiyasini chaqirish (Promise asosida)
-    const result = await createReadingSection({ monthId: parseInt(monthId), sections });
-    
+    const result = await createReadingSection({
+      monthId: parseInt(monthId),
+      sections,
+    });
+
     // 3. Muvaffaqiyatli javob
-    res.status(201).json({ message: 'Reading test successfully updated (Postgres)', result });
+    res
+      .status(201)
+      .json({ message: "Reading test successfully updated ", result });
   } catch (err) {
-    console.error('Error adding/updating test (Postgres):', err.message);
-    return res.status(500).json({ message: 'Error adding/updating test', details: err.message });
+    console.error("Error adding/updating test :", err.message);
+    return res
+      .status(500)
+      .json({ message: "Error adding/updating test", details: err.message });
   }
 };
 

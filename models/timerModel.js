@@ -1,4 +1,4 @@
-const pool = require('../config/db'); // pg pool ni import qilish
+const pool = require("../config/db"); // pg pool ni import qilish
 
 // Jadval yaratish (Model funksiyasi emas, shunchaki chaqiriladi)
 const createSectionTimerTable = () => {
@@ -14,15 +14,15 @@ const createSectionTimerTable = () => {
     );
   `;
 
-  pool.query(query)
+  pool
+    .query(query)
     .then(() => {
-      console.log('✅ section_timer jadvali yaratildi yoki mavjud (Postgres)!');
+      console.log("✅ section_timer jadvali yaratildi yoki mavjud !");
     })
     .catch((err) => {
-      console.error('❌ Jadval yaratishda xatolik:', err.message);
+      console.error("❌ Jadval yaratishda xatolik:", err.message);
     });
 };
-
 
 // Boshlanish vaqtini kiritish (To'liq Async/await ga o'tkazildi)
 const insertStartTime = async (userId, section, monthId) => {
@@ -33,7 +33,7 @@ const insertStartTime = async (userId, section, monthId) => {
     ON CONFLICT (user_id, section, month_id) 
     DO NOTHING;
   `;
-  
+
   try {
     // Shunchaki so'rovni bajarish, natijani qaytarish shart emas
     await pool.query(query, [userId, section, monthId]);
@@ -43,14 +43,13 @@ const insertStartTime = async (userId, section, monthId) => {
   }
 };
 
-
 // Boshlanish vaqtini olish (To'liq Async/await ga o'tkazildi)
 const getStartTime = async (userId, section, monthId) => {
   const query = `
     SELECT start_time FROM section_timer
     WHERE user_id = $1 AND section = $2 AND month_id = $3
   `;
-  
+
   try {
     const result = await pool.query(query, [userId, section, monthId]);
     // Yagona qatorni yoki null ni qaytaramiz

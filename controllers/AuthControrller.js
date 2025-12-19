@@ -1,12 +1,12 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 const {
   createUsersTable, // Bu model funksiyasini kontrollerda ishlatish shart emas
   createUser,
   findUserByUsername,
-  findUserByEmail
-}  = require('../models/Auth');
+  findUserByEmail,
+} = require("../models/Auth");
 const SECRET_KEY = process.env.JWT_SECRET || "sirliTokenKalit";
 
 // ✅ Register (Async/await ga o'tkazildi)
@@ -20,7 +20,7 @@ const Register = async (req, res) => {
   try {
     // 1. Email bo'yicha foydalanuvchini tekshirish
     // Model funksiyasi endi callback o'rniga Promise orqali user obyektini (yoki null) qaytaradi
-    const userByEmail = await findUserByEmail(email); 
+    const userByEmail = await findUserByEmail(email);
     if (userByEmail) {
       return res.status(400).json({ msg: "Email already exists" });
     }
@@ -30,16 +30,21 @@ const Register = async (req, res) => {
 
     // 3. Foydalanuvchini yaratish
     // Model Promise orqali userId ni qaytaradi
-    await createUser({ username, email, password: hashedPassword, role: role || 'user' });
-    
-    res.status(201).json({ msg: "Registration successful (Postgres)" });
+    await createUser({
+      username,
+      email,
+      password: hashedPassword,
+      role: role || "user",
+    });
 
+    res.status(201).json({ msg: "Registration successful " });
   } catch (err) {
-    console.error("Error during registration (Postgres):", err.message);
-    return res.status(500).json({ msg: "Server error during registration", details: err.message });
+    console.error("Error during registration :", err.message);
+    return res
+      .status(500)
+      .json({ msg: "Server error during registration", details: err.message });
   }
 };
-
 
 // ✅ Login (Async/await ga o'tkazildi)
 const Login = async (req, res) => {
@@ -51,13 +56,13 @@ const Login = async (req, res) => {
   try {
     // 1. Username bo'yicha foydalanuvchini topish
     // Model funksiyasi Promise orqali user obyektini (yoki null) qaytaradi
-    const user = await findUserByUsername(username); 
+    const user = await findUserByUsername(username);
     if (!user) {
       return res.status(400).json({ msg: "User not found" });
     }
 
     // 2. Parolni solishtirish
-    // bcrypt.compareSync o'rniga, agar modelda parollar ishlashini to'g'ri boshqarsangiz, 
+    // bcrypt.compareSync o'rniga, agar modelda parollar ishlashini to'g'ri boshqarsangiz,
     // yoki bcrypt.compare (Promise) ishlatilishi mumkin, lekin bu yerda Sync qoldi
     const valid = bcrypt.compareSync(password, user.password);
     if (!valid) {
@@ -68,16 +73,16 @@ const Login = async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       SECRET_KEY,
-      { expiresIn: '7d' }
+      { expiresIn: "7d" }
     );
 
-    res.json({ msg: "Login successful (Postgres)", token });
-
+    res.json({ msg: "Login successful ", token });
   } catch (err) {
-    console.error("Error during login (Postgres):", err.message);
-    return res.status(500).json({ msg: "Server error during login", details: err.message });
+    console.error("Error during login :", err.message);
+    return res
+      .status(500)
+      .json({ msg: "Server error during login", details: err.message });
   }
 };
-
 
 module.exports = { Register, Login };

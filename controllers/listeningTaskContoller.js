@@ -1,4 +1,7 @@
-const { saveListeningTest, getListeningTestByMonth } = require("../models/listeningTaskModel");
+const {
+  saveListeningTest,
+  getListeningTestByMonth,
+} = require("../models/listeningTaskModel");
 
 // Create or update listening test (Async/await ga o'tkazildi)
 const createOrUpdateListeningTest = async (req, res) => {
@@ -6,9 +9,9 @@ const createOrUpdateListeningTest = async (req, res) => {
   const monthId = parseInt(testData.monthId);
 
   if (!monthId || !testData.sections) {
-    return res.status(400).json({ 
-      message: "monthId and sections are required", 
-      success: false 
+    return res.status(400).json({
+      message: "monthId and sections are required",
+      success: false,
     });
   }
 
@@ -16,17 +19,17 @@ const createOrUpdateListeningTest = async (req, res) => {
     // Model funksiyasi endi Promise qaytaradi
     await saveListeningTest(monthId, testData);
 
-    res.status(201).json({ 
-      message: "Listening test saved successfully (Postgres)", 
+    res.status(201).json({
+      message: "Listening test saved successfully ",
       monthId: monthId,
-      success: true
+      success: true,
     });
   } catch (err) {
-    console.error("Error while saving listening test (Postgres):", err.message);
-    return res.status(500).json({ 
-      message: "Error while saving listening test", 
+    console.error("Error while saving listening test :", err.message);
+    return res.status(500).json({
+      message: "Error while saving listening test",
       error: err.message,
-      success: false 
+      success: false,
     });
   }
 };
@@ -34,11 +37,11 @@ const createOrUpdateListeningTest = async (req, res) => {
 // Get listening test by month ID (Async/await ga o'tkazildi)
 const getListeningTest = async (req, res) => {
   const monthId = parseInt(req.params.monthId || req.query.monthId);
-  
+
   if (!monthId) {
-    return res.status(400).json({ 
-      message: "monthId is required", 
-      success: false 
+    return res.status(400).json({
+      message: "monthId is required",
+      success: false,
     });
   }
 
@@ -47,27 +50,27 @@ const getListeningTest = async (req, res) => {
     const testData = await getListeningTestByMonth(monthId);
 
     if (!testData) {
-      return res.status(404).json({ 
-        message: "Test not found", 
-        success: false 
+      return res.status(404).json({
+        message: "Test not found",
+        success: false,
       });
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       success: true,
-      data: testData
+      data: testData,
     });
   } catch (err) {
-    console.error("Error while fetching listening test (Postgres):", err.message);
-    return res.status(500).json({ 
-      message: "Error while fetching listening test", 
+    console.error("Error while fetching listening test :", err.message);
+    return res.status(500).json({
+      message: "Error while fetching listening test",
       error: err.message,
-      success: false 
+      success: false,
     });
   }
 };
 
 module.exports = {
   createOrUpdateListeningTest,
-  getListeningTest
+  getListeningTest,
 };
